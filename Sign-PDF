@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Sign PDF · Digital Signature Tool · iLovePDF Tools</title>
+    <!-- PDF.js for rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <!-- Fabric.js for signature drawing & annotation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+    <!-- pdf-lib for final PDF generation -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(145deg, #eef2fa 0%, #e0e8f2 100%);
+            min-height: 100vh;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+        }
+
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #ffffffea;
+            border-radius: 2rem;
+            box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(98deg, #2c5538, #1e3e2a);
+            padding: 1.2rem 2rem;
+            color: white;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-weight: 700;
+            font-size: 1.6rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toolbar {
+            background: #f8fafc;
+            padding: 0.7rem 1.5rem;
+            border-bottom: 1px solid #e2edf2;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .tools-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .tool-btn {
+            background: white;
+            border: 1px solid #cbd5e1;
+            padding: 0.45rem 1rem;
+            border-radius: 2rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tool-btn.active {
+            background: #2c5538;
+            color: white;
+            border-color: #2c5538;
+        }
+
+        .signature-badge {
+            background: #2c5538;
+            color: white;
+            padding: 0.3rem 1rem;
+            border-radius: 2rem;
+            font-size: 0.75rem;
+        }
+
+        .editor-layout {
+            display: flex;
+            flex-direction: row;
+            min-height: 68vh;
+        }
+
+        .pages-sidebar {
+            width: 180px;
+            background: #f9fbfd;
+            border-right: 1px solid #e2edf2;
+            padding: 1rem;
+            overflow-y: auto;
+            max-height: 65vh;
+        }
+
+        .page-thumb {
+            background: white;
+            border: 1px solid #dce5ec;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            padding: 6px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.1s;
+            font-size: 0.75rem;
+        }
+
+        .page-thumb.active {
+            border: 2px solid #2c5538;
+            background: #eef7f0;
+        }
+
+        .canvas-container {
+            flex: 1;
+            overflow: auto;
+            background: #eef2f5;
+            display: flex;
+            justify-content: center;
+            padding: 1rem;
+            position: relative;
+        }
+
+        .pdf-canvas-wrapper {
+            background: #fff;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            display: inline-block;
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .signature-panel {
+            background: #fefaf5;
+            border-radius: 1rem;
+            padding: 0.8rem;
+            margin-top: 0.5rem;
+            width: 260px;
+            border: 1px solid #e2e0d8;
+        }
+
+        .status-bar {
+            padding: 0.6rem 1.5rem;
+            background: #f1f5f9;
+            border-top: 1px solid #e2edf2;
+            font-size: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        button.primary-action {
+            background: #2c5538;
+            color: white;
+            border: none;
+            padding: 0.5rem 1.5rem;
+            border-radius: 2rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .drop-zone-sm {
+            border: 1px dashed #90b4ce;
+            border-radius: 2rem;
+            padding: 0.2rem 1rem;
+            background: #fff;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        @media (max-width: 780px) {
+            .editor-layout { flex-direction: column; }
+            .pages-sidebar { width: 100%; max-height: 110px; display: flex; gap: 0.5rem; overflow-x: auto; flex-direction: row; }
+            .page-thumb { min-width: 65px; }
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div class="header">
+        <h1>✍️ Sign PDF · Digital Signature Tool</h1>
+        <div class="tools-group">
+            <div class="drop-zone-sm" id="loadPdfBtn">📂 Load PDF</div>
+            <input type="file" id="pdfUpload" accept="application/pdf">
+            <button id="saveSignedPdfBtn" class="primary-action">💾 Save Signed PDF</button>
+        </div>
+    </div>
+
+    <div class="toolbar">
+        <div class="tools-group">
+            <button id="drawSignBtn" class="tool-btn">🖌️ Draw Signature</button>
+            <button id="textSignBtn" class="tool-btn">📝 Add Text (Name/Date)</button>
+            <button id="moveBtn" class="tool-btn active">🖱️ Move/Resize</button>
+            <button id="clearSignBtn" class="tool-btn">🗑️ Clear All</button>
+            <input type="color" id="signColor" value="#1e3e2a" style="width: 36px; height: 32px; border-radius: 8px; border:1px solid #ccc;">
+        </div>
+        <div class="signature-badge">✍️ Draw or add signature block · Drag to reposition</div>
+    </div>
+
+    <div class="editor-layout">
+        <div class="pages-sidebar" id="pagesSidebar"></div>
+        <div class="canvas-container" id="canvasContainer">
+            <div class="pdf-canvas-wrapper" id="canvasWrapper">
+                <canvas id="pdfCanvas" width="600" height="800"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="status-bar">
+        <span id="pageInfo">Page: 0 / 0</span>
+        <span>✨ Draw signature, add text, then save as permanent PDF</span>
+    </div>
+</div>
+
+<script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    
+    // Global state
+    let pdfDoc = null;
+    let currentPageNum = 1;
+    let totalPages = 0;
+    let fabricCanvas = null;
+    let currentMode = 'select'; // 'draw', 'text', 'select'
+    let currentColor = '#1e3e2a';
+    let currentWidth = 3;
+    let originalPdfBuffer = null;
+    let pageAnnotations = {}; // store fabric objects per page as JSON
+    
+    // DOM elements
+    const pdfCanvas = document.getElementById('pdfCanvas');
+    const canvasWrapper = document.getElementById('canvasWrapper');
+    const pagesSidebar = document.getElementById('pagesSidebar');
+    const loadPdfBtn = document.getElementById('loadPdfBtn');
+    const pdfUpload = document.getElementById('pdfUpload');
+    const saveSignedPdfBtn = document.getElementById('saveSignedPdfBtn');
+    const drawSignBtn = document.getElementById('drawSignBtn');
+    const textSignBtn = document.getElementById('textSignBtn');
+    const moveBtn = document.getElementById('moveBtn');
+    const clearSignBtn = document.getElementById('clearSignBtn');
+    const signColor = document.getElementById('signColor');
+    const pageInfoSpan = document.getElementById('pageInfo');
+    
+    // Initialize fabric overlay
+    function initFabricCanvas(width, height) {
+        if (fabricCanvas) fabricCanvas.dispose();
+        fabricCanvas = new fabric.Canvas('pdfCanvas', {
+            selection: true,
+            preserveObjectStacking: true,
+            width: width,
+            height: height,
+            backgroundColor: 'transparent'
+        });
+        fabricCanvas.setWidth(width);
+        fabricCanvas.setHeight(height);
+        fabricCanvas.renderAll();
+        
+        fabricCanvas.isDrawingMode = (currentMode === 'draw');
+        fabricCanvas.freeDrawingBrush.color = currentColor;
+        fabricCanvas.freeDrawingBrush.width = currentWidth;
+        fabricCanvas.selection = (currentMode === 'select');
+        
+        fabricCanvas.on('path:created', () => saveCurrentPageAnnotations());
+        fabricCanvas.on('object:modified', () => saveCurrentPageAnnotations());
+        fabricCanvas.on('object:added', () => saveCurrentPageAnnotations());
+        fabricCanvas.on('object:removed', () => saveCurrentPageAnnotations());
+        
+        // Double-click to add text if text mode active
+        fabricCanvas.off('mouse:dblclick');
+        fabricCanvas.on('mouse:dblclick', (e) => {
+            if (currentMode === 'text') {
+                const pointer = fabricCanvas.getPointer(e.e);
+                addTextAt(pointer.x, pointer.y);
+            }
+        });
+    }
+    
+    function addTextAt(x, y) {
+        const textbox = new fabric.Textbox('Your Signature / Date', {
+            left: x,
+            top: y,
+            fontSize: 18,
+            fill: currentColor,
+            fontFamily: 'Arial',
+            fontWeight: 'normal',
+            width: 160,
+            editable: true,
+            borderColor: '#2c5538',
+            cornerColor: '#2c5538'
+        });
+        fabricCanvas.add(textbox);
+        fabricCanvas.setActiveObject(textbox);
+        fabricCanvas.renderAll();
+        saveCurrentPageAnnotations();
+    }
+    
+    function saveCurrentPageAnnotations() {
+        if (!fabricCanvas || !currentPageNum) return;
+        const objects = fabricCanvas.toJSON();
+        pageAnnotations[currentPageNum] = objects;
+    }
+    
+    function loadAnnotationsForPage(pageNum) {
+        if (!fabricCanvas) return;
+        fabricCanvas.clear();
+        fabricCanvas.backgroundColor = 'transparent';
+        if (pageAnnotations[pageNum] && pageAnnotations[pageNum].objects) {
+            fabricCanvas.loadFromJSON(pageAnnotations[pageNum], () => {
+                fabricCanvas.renderAll();
+                fabricCanvas.isDrawingMode = (currentMode === 'draw');
+                fabricCanvas.freeDrawingBrush.color = currentColor;
+                fabricCanvas.freeDrawingBrush.width = currentWidth;
+                fabricCanvas.selection = (currentMode === 'select');
+            });
+        } else {
+            fabricCanvas.renderAll();
+        }
+    }
+    
+    async function renderPage(pageNum) {
+        if (!pdfDoc) return;
+        const page = await pdfDoc.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 1.8 });
+        const width = viewport.width;
+        const height = viewport.height;
+        
+        pdfCanvas.width = width;
+        pdfCanvas.height = height;
+        pdfCanvas.style.width = `${width}px`;
+        pdfCanvas.style.height = `${height}px`;
+        canvasWrapper.style.width = `${width}px`;
+        canvasWrapper.style.height = `${height}px`;
+        
+        const context = pdfCanvas.getContext('2d');
+        await page.render({ canvasContext: context, viewport: viewport, background: 'white' }).promise;
+        
+        initFabricCanvas(width, height);
+        loadAnnotationsForPage(pageNum);
+        pageInfoSpan.innerText = `Page ${pageNum} / ${totalPages}`;
+        updateThumbnailsActive();
+    }
+    
+    async function loadPDF(arrayBuffer) {
+        originalPdfBuffer = arrayBuffer;
+        pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer.slice() }).promise;
+        totalPages = pdfDoc.numPages;
+        pageAnnotations = {};
+        currentPageNum = 1;
+        await renderPage(1);
+        buildThumbnails();
+    }
+    
+    function buildThumbnails() {
+        pagesSidebar.innerHTML = '';
+        for (let i = 1; i <= totalPages; i++) {
+            const thumb = document.createElement('div');
+            thumb.className = 'page-thumb';
+            thumb.innerText = `Page ${i}`;
+            thumb.addEventListener('click', async () => {
+                if (currentPageNum !== i) {
+                    saveCurrentPageAnnotations();
+                    currentPageNum = i;
+                    await renderPage(currentPageNum);
+                }
+            });
+            pagesSidebar.appendChild(thumb);
+        }
+        updateThumbnailsActive();
+    }
+    
+    function updateThumbnailsActive() {
+        const thumbs = document.querySelectorAll('.page-thumb');
+        thumbs.forEach((el, idx) => {
+            if (idx + 1 === currentPageNum) el.classList.add('active');
+            else el.classList.remove('active');
+        });
+    }
+    
+    // Export PDF with signatures (embed signatures as images onto each page)
+    async function exportSignedPDF() {
+        if (!pdfDoc || !originalPdfBuffer) {
+            alert("No PDF loaded. Please load a PDF first.");
+            return;
+        }
+        saveCurrentPageAnnotations();
+        const { PDFDocument } = PDFLib;
+        const newPdfDoc = await PDFDocument.load(originalPdfBuffer);
+        
+        for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+            const page = await pdfDoc.getPage(pageNum);
+            const viewport = page.getViewport({ scale: 2.2 });
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            const ctx = canvas.getContext('2d');
+            await page.render({ canvasContext: ctx, viewport: viewport, background: 'white' }).promise;
+            
+            // Overlay signature annotations if exist
+            if (pageAnnotations[pageNum] && pageAnnotations[pageNum].objects && pageAnnotations[pageNum].objects.length > 0) {
+                const overlayCanvas = document.createElement('canvas');
+                overlayCanvas.width = viewport.width;
+                overlayCanvas.height = viewport.height;
+                const fabricOverlay = new fabric.Canvas(null, { width: viewport.width, height: viewport.height });
+                fabricOverlay.loadFromJSON(pageAnnotations[pageNum], () => fabricOverlay.renderAll());
+                await new Promise(resolve => setTimeout(resolve, 80));
+                const overlayImage = fabricOverlay.getElement();
+                ctx.drawImage(overlayImage, 0, 0);
+                fabricOverlay.dispose();
+            }
+            
+            const imgData = canvas.toDataURL('image/jpeg', 0.92);
+            const jpgImage = await newPdfDoc.embedJpg(imgData.split(',')[1], { base64: true });
+            const pdfPage = newPdfDoc.getPages()[pageNum - 1];
+            const { width, height } = pdfPage.getSize();
+            pdfPage.drawImage(jpgImage, { x: 0, y: 0, width: width, height: height });
+        }
+        
+        const finalBytes = await newPdfDoc.save();
+        const blob = new Blob([finalBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'signed_document.pdf';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        alert("✅ Signed PDF saved successfully!");
+    }
+    
+    // Event listeners
+    loadPdfBtn.addEventListener('click', () => pdfUpload.click());
+    pdfUpload.addEventListener('change', async (e) => {
+        if (e.target.files.length) {
+            const file = e.target.files[0];
+            if (file.type !== 'application/pdf') {
+                alert("Please select a valid PDF.");
+                return;
+            }
+            const buffer = await file.arrayBuffer();
+            await loadPDF(buffer);
+        }
+        pdfUpload.value = '';
+    });
+    
+    saveSignedPdfBtn.addEventListener('click', exportSignedPDF);
+    
+    drawSignBtn.addEventListener('click', () => {
+        currentMode = 'draw';
+        if (fabricCanvas) {
+            fabricCanvas.isDrawingMode = true;
+            fabricCanvas.selection = false;
+            fabricCanvas.forEachObject(obj => obj.selectable = false);
+        }
+        drawSignBtn.classList.add('active');
+        textSignBtn.classList.remove('active');
+        moveBtn.classList.remove('active');
+    });
+    
+    textSignBtn.addEventListener('click', () => {
+        currentMode = 'text';
+        if (fabricCanvas) {
+            fabricCanvas.isDrawingMode = false;
+            fabricCanvas.selection = false;
+            fabricCanvas.forEachObject(obj => obj.selectable = true);
+        }
+        textSignBtn.classList.add('active');
+        drawSignBtn.classList.remove('active');
+        moveBtn.classList.remove('active');
+    });
+    
+    moveBtn.addEventListener('click', () => {
+        currentMode = 'select';
+        if (fabricCanvas) {
+            fabricCanvas.isDrawingMode = false;
+            fabricCanvas.selection = true;
+            fabricCanvas.forEachObject(obj => obj.selectable = true);
+        }
+        moveBtn.classList.add('active');
+        drawSignBtn.classList.remove('active');
+        textSignBtn.classList.remove('active');
+    });
+    
+    clearSignBtn.addEventListener('click', () => {
+        if (fabricCanvas && confirm('Remove all signatures/annotations on this page?')) {
+            fabricCanvas.clear();
+            fabricCanvas.backgroundColor = 'transparent';
+            saveCurrentPageAnnotations();
+            fabricCanvas.renderAll();
+        }
+    });
+    
+    signColor.addEventListener('change', (e) => {
+        currentColor = e.target.value;
+        if (fabricCanvas) fabricCanvas.freeDrawingBrush.color = currentColor;
+    });
+    
+    // Brush width default
+    if (fabricCanvas) fabricCanvas.freeDrawingBrush.width = 3;
+    
+    // Initial placeholder
+    initFabricCanvas(600, 800);
+    fabricCanvas.isDrawingMode = false;
+    fabricCanvas.selection = true;
+    currentMode = 'select';
+    moveBtn.classList.add('active');
+    document.getElementById('pageInfo').innerText = "Ready — Load a PDF to add signatures";
+</script>
+</body>
+</html>
