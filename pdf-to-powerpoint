@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>PDF to PowerPoint · Convert PDF to PPTX</title>
+  <!-- PDF.js for rendering and extracting pages -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <!-- PptxGenJS to create PowerPoint presentations -->
+  <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+  <!-- JSZip for optional fallback, but pptxgenjs handles it internally -->
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: linear-gradient(135deg, #0a0f1e 0%, #0f172a 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      padding: 24px;
+    }
+
+    /* Modern glass card */
+    .card {
+      max-width: 1000px;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.98);
+      backdrop-filter: blur(0px);
+      border-radius: 2rem;
+      box-shadow: 0 30px 50px -20px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(255,255,255,0.1);
+      overflow: hidden;
+      transition: transform 0.2s ease;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    /* Gradient header inspired by PowerPoint */
+    .header {
+      background: linear-gradient(98deg, #b13e3e 0%, #8b2c2c 100%);
+      padding: 1.8rem 2rem;
+      color: white;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .header h1 {
+      margin: 0;
+      font-weight: 700;
+      font-size: 1.9rem;
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header h1:before {
+      content: "📊";
+      font-size: 2rem;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+    }
+
+    .header p {
+      margin: 0.5rem 0 0;
+      opacity: 0.9;
+      font-size: 0.9rem;
+    }
+
+    .content {
+      padding: 2rem;
+    }
+
+    /* Drop zone with PowerPoint flair */
+    .drop-zone {
+      border: 2px dashed #d16b6b;
+      border-radius: 1.5rem;
+      background: #fffbf5;
+      text-align: center;
+      padding: 2.5rem 1.5rem;
+      transition: all 0.25s ease;
+      cursor: pointer;
+      margin-bottom: 1.6rem;
+      background: #ffffffea;
+    }
+
+    .drop-zone.drag-over {
+      background: #ffe8e8;
+      border-color: #b13e3e;
+      transform: scale(0.98);
+      border-style: solid;
+    }
+
+    .drop-icon {
+      font-size: 3.8rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .drop-text {
+      font-size: 1.2rem;
+      font-weight: 600;
+      background: linear-gradient(135deg, #b13e3e, #7a2e2e);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+
+    .drop-sub {
+      font-size: 0.8rem;
+      color: #6c4f4f;
+      margin-top: 0.5rem;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    /* Options panel */
+    .options-panel {
+      background: #f8f4f0;
+      border-radius: 1.2rem;
+      padding: 1rem 1.4rem;
+      margin: 1rem 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      align-items: center;
+      justify-content: space-between;
+      border: 1px solid #f0e2d8;
+    }
+
+    .option-group {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #4a2e2e;
+    }
+
+    .option-group input {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: #b13e3e;
+    }
+
+    .quality-badge {
+      background: #b13e3e20;
+      padding: 0.2rem 0.8rem;
+      border-radius: 40px;
+      font-size: 0.75rem;
+      color: #942828;
+    }
+
+    .info-text {
+      font-size: 0.75rem;
+      color: #6e5a5a;
+      margin-top: 0.4rem;
+    }
+
+    /* Buttons */
+    .action-buttons {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-top: 1.5rem;
+    }
+
+    button {
+      border: none;
+      padding: 0.8rem 1.8rem;
+      border-radius: 3rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    button.primary {
+      background: linear-gradient(110deg, #b13e3e, #942c2c);
+      color: white;
+    }
+
+    button.primary:hover:not(:disabled) {
+      background: linear-gradient(110deg, #cc4a4a, #ad3535);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 18px rgba(177, 62, 62, 0.3);
+    }
+
+    button.secondary {
+      background: #2c3e50;
+      color: white;
+    }
+
+    button.secondary:hover:not(:disabled) {
+      background: #1f3345;
+      transform: translateY(-1px);
+    }
+
+    button:active {
+      transform: scale(0.96);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* File info */
+    .file-info {
+      background: #fcf7f2;
+      border-radius: 1rem;
+      padding: 0.8rem 1.2rem;
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      border-left: 5px solid #b13e3e;
+      align-items: center;
+    }
+
+    .badge {
+      background: #b13e3e;
+      border-radius: 40px;
+      padding: 0.25rem 1rem;
+      color: white;
+      font-size: 0.7rem;
+      font-weight: 500;
+    }
+
+    .status {
+      margin-top: 1.2rem;
+      padding: 0.9rem 1rem;
+      border-radius: 1rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    .success {
+      background: #e3f5ec;
+      color: #1f7840;
+      border-left: 5px solid #2e9c5c;
+    }
+
+    .error {
+      background: #ffe6e5;
+      color: #bc3900;
+      border-left: 5px solid #d9534f;
+    }
+
+    .progress-status {
+      margin-top: 0.5rem;
+      font-size: 0.8rem;
+      color: #b13e3e;
+      font-weight: 500;
+    }
+
+    hr {
+      margin: 1.2rem 0 0.5rem;
+      border: none;
+      height: 1px;
+      background: linear-gradient(90deg, #e2cfc5, #c7a98b, #e2cfc5);
+    }
+
+    footer {
+      font-size: 0.7rem;
+      text-align: center;
+      padding: 1rem;
+      color: #9b7b6e;
+      border-top: 1px solid #f0e2d8;
+      background: #fffcf9;
+    }
+
+    @media (max-width: 550px) {
+      .content { padding: 1.2rem; }
+      .options-panel { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <h1>PDF to PowerPoint</h1>
+    <p>Convert each PDF page into a stunning PowerPoint slide · Editable PPTX</p>
+  </div>
+  <div class="content">
+    <div id="dropZone" class="drop-zone">
+      <div class="drop-icon">📄 ➜ 📊</div>
+      <div class="drop-text">Drop PDF here or click to browse</div>
+      <div class="drop-sub">Each PDF page becomes a separate PowerPoint slide (images, graphics preserved)</div>
+      <input type="file" id="fileInput" accept="application/pdf">
+    </div>
+
+    <div id="fileInfoArea" class="file-info" style="display: none;">
+      <span>📁 <strong id="fileName"></strong></span>
+      <span>📏 <span id="fileSize"></span> MB</span>
+      <span class="badge" id="pageCountBadge">📄 pages: —</span>
+    </div>
+
+    <div class="options-panel">
+      <div class="option-group">
+        <input type="checkbox" id="scaleToSlide" checked>
+        <label for="scaleToSlide">📐 Auto-fit PDF page to slide (maintain aspect ratio)</label>
+      </div>
+      <div class="option-group">
+        <input type="checkbox" id="highQualityImage" checked>
+        <label for="highQualityImage">✨ High quality rendering (recommended)</label>
+      </div>
+      <div class="quality-badge">🔹 Each slide = full PDF page image</div>
+    </div>
+    <div class="info-text">
+      💡 How it works: PDF pages are rendered as high-resolution images and inserted into a PowerPoint presentation.
+      Text & graphics appear exactly as in original PDF. Perfect for reports, pitches and archiving.
+    </div>
+
+    <div class="action-buttons">
+      <button id="convertBtn" class="primary" disabled>🎯 Convert to PowerPoint</button>
+      <button id="downloadBtn" class="secondary" disabled>💾 Download .PPTX</button>
+    </div>
+
+    <div id="statusMessage" class="status"></div>
+    <div id="progressDetail" class="progress-status"></div>
+    <hr>
+    <div class="info-text" style="text-align:center; margin-top: 0.2rem;">
+      🧠 100% client-side · No file upload · Creates native PowerPoint file with embedded slide images.
+    </div>
+  </div>
+  <footer>
+    ⚡ Optimized for modern browsers · Each page converted to slide background/image. Editable PPTX ready for presentation.
+  </footer>
+</div>
+
+<script>
+  (function(){
+    // Configure PDF.js worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    
+    // DOM elements
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const convertBtn = document.getElementById('convertBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const fileNameSpan = document.getElementById('fileName');
+    const fileSizeSpan = document.getElementById('fileSize');
+    const pageCountBadge = document.getElementById('pageCountBadge');
+    const fileInfoArea = document.getElementById('fileInfoArea');
+    const statusDiv = document.getElementById('statusMessage');
+    const progressDetail = document.getElementById('progressDetail');
+    const scaleToSlideCheck = document.getElementById('scaleToSlide');
+    const highQualityCheck = document.getElementById('highQualityImage');
+    
+    // state
+    let originalPdfBuffer = null;
+    let originalPdfName = "";
+    let totalPages = 0;
+    let generatedPptxBlob = null;
+    let isConverting = false;
+
+    function formatMB(bytes) {
+      if (!bytes) return "0";
+      return (bytes / (1024 * 1024)).toFixed(2);
+    }
+
+    function resetConversionState() {
+      generatedPptxBlob = null;
+      downloadBtn.disabled = true;
+      progressDetail.innerHTML = "";
+    }
+
+    function displayFileInfo(file) {
+      originalPdfName = file.name;
+      fileNameSpan.innerText = file.name;
+      fileSizeSpan.innerText = formatMB(file.size);
+      fileInfoArea.style.display = "flex";
+      resetConversionState();
+      convertBtn.disabled = false;
+      pageCountBadge.innerText = "📄 loading...";
+    }
+
+    async function loadPdfMetadata(buffer) {
+      try {
+        const loadingTask = pdfjsLib.getDocument({ data: buffer, useSystemFonts: true });
+        const pdfDoc = await loadingTask.promise;
+        totalPages = pdfDoc.numPages;
+        pageCountBadge.innerText = `📄 ${totalPages} pages`;
+        return pdfDoc;
+      } catch (err) {
+        console.error("PDF load error", err);
+        pageCountBadge.innerText = "⚠️ invalid PDF";
+        throw new Error("Cannot read PDF file. It may be corrupted or password-protected.");
+      }
+    }
+    
+    // Convert PDF to PowerPoint (each page as image)
+    async function convertPdfToPptx(arrayBuffer, fileName) {
+      const pdfDocument = await pdfjsLib.getDocument({ data: arrayBuffer.slice() }).promise;
+      const pages = pdfDocument.numPages;
+      
+      // Determine render scale based on quality setting
+      const isHighQuality = highQualityCheck.checked;
+      const renderScale = isHighQuality ? 2.2 : 1.5;   // 2.2x = ~158 DPI for crisp slides
+      const imageQuality = isHighQuality ? 0.92 : 0.82; // JPEG quality for slide images
+      
+      // Create new PPTX presentation
+      const PptxGenJS = window.PptxGenJS;
+      const pptx = new PptxGenJS();
+      
+      // Set default slide layout to blank (so we can fill full image)
+      pptx.defineLayout({ name:'CUSTOM', width:10, height:7.5 }); // standard 4:3? Use widescreen better
+      pptx.layout = 'LAYOUT_WIDE';  // 16:9 widescreen (10 x 5.625 inches)
+      // Actually set default slide size to 16:9 (13.33" x 7.5" ) but simpler: use WIDE
+      // but we will add images fitting slide.
+      
+      // For each page, render to canvas and embed as image in new slide
+      for (let i = 1; i <= pages; i++) {
+        const page = await pdfDocument.getPage(i);
+        const viewport = page.getViewport({ scale: renderScale });
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        
+        const renderContext = {
+          canvasContext: context,
+          viewport: viewport,
+          background: 'white',
+          enableWebGL: false
+        };
+        await page.render(renderContext).promise;
+        
+        // Convert canvas to JPEG blob
+        const jpegBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', imageQuality));
+        const imageArrayBuffer = await jpegBlob.arrayBuffer();
+        const imageDataUri = await blobToDataURL(jpegBlob);
+        
+        // Add a new slide
+        const slide = pptx.addSlide();
+        
+        // Get slide dimensions (inches) - default widescreen 10x5.625
+        const slideWidth = pptx.presentation.layout.width;   // 10 inches typically for WIDE
+        const slideHeight = pptx.presentation.layout.height;  // 5.625 inches
+        
+        const imgWidthInches = canvas.width / 96;   // 96 DPI base conversion (canvas physical pixels)
+        const imgHeightInches = canvas.height / 96;
+        
+        let finalX = 0, finalY = 0, finalW = imgWidthInches, finalH = imgHeightInches;
+        
+        if (scaleToSlideCheck.checked) {
+          // scale image to fit slide while preserving aspect ratio
+          const ratioW = slideWidth / imgWidthInches;
+          const ratioH = slideHeight / imgHeightInches;
+          const scaleRatio = Math.min(ratioW, ratioH);
+          finalW = imgWidthInches * scaleRatio;
+          finalH = imgHeightInches * scaleRatio;
+          finalX = (slideWidth - finalW) / 2;
+          finalY = (slideHeight - finalH) / 2;
+        } else {
+          // place at top-left, may overflow but we'll clip (or auto-fit to slide width/height with option)
+          if (imgWidthInches > slideWidth || imgHeightInches > slideHeight) {
+            const ratioW = slideWidth / imgWidthInches;
+            const ratioH = slideHeight / imgHeightInches;
+            const scaleRatio = Math.min(ratioW, ratioH);
+            finalW = imgWidthInches * scaleRatio;
+            finalH = imgHeightInches * scaleRatio;
+            finalX = (slideWidth - finalW) / 2;
+            finalY = (slideHeight - finalH) / 2;
+          }
+        }
+        
+        slide.addImage({
+          data: imageDataUri,
+          x: finalX,
+          y: finalY,
+          w: finalW,
+          h: finalH,
+          sizing: scaleToSlideCheck.checked ? 'contain' : 'cover', // extra safety
+        });
+        
+        // Update progress status
+        progressDetail.innerHTML = `📄 Converting page ${i}/${pages}...`;
+        statusDiv.innerHTML = `⏳ Rendering PDF page ${i}/${pages} → adding to PowerPoint`;
+        // small yield for UI
+        await new Promise(r => setTimeout(r, 8));
+      }
+      
+      // Generate PPTX blob
+      progressDetail.innerHTML = `📦 Building PowerPoint file...`;
+      const pptxBlob = await pptx.write({ outputType: 'blob' });
+      return pptxBlob;
+    }
+    
+    // Helper: blob to dataURL
+    function blobToDataURL(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+    
+    async function handleFile(file) {
+      if (!file || file.type !== 'application/pdf') {
+        statusDiv.innerHTML = "❌ Please select a valid PDF file.";
+        statusDiv.className = "status error";
+        return false;
+      }
+      if (file.size > 70 * 1024 * 1024) {
+        statusDiv.innerHTML = "❌ PDF exceeds 70 MB. For large files, performance may drop. Try smaller file.";
+        statusDiv.className = "status error";
+        return false;
+      }
+      displayFileInfo(file);
+      const buffer = await file.arrayBuffer();
+      originalPdfBuffer = buffer;
+      try {
+        await loadPdfMetadata(buffer);
+        resetConversionState();
+        convertBtn.disabled = false;
+        statusDiv.innerHTML = "✅ PDF loaded. Click 'Convert to PowerPoint' to generate PPTX.";
+        statusDiv.className = "status success";
+        return true;
+      } catch(e) {
+        statusDiv.innerHTML = `❌ PDF error: ${e.message}`;
+        statusDiv.className = "status error";
+        convertBtn.disabled = true;
+        return false;
+      }
+    }
+    
+    convertBtn.addEventListener('click', async () => {
+      if (!originalPdfBuffer) {
+        statusDiv.innerHTML = "⚠️ No PDF loaded. Drop a PDF first.";
+        statusDiv.className = "status error";
+        return;
+      }
+      if (isConverting) return;
+      isConverting = true;
+      convertBtn.disabled = true;
+      downloadBtn.disabled = true;
+      statusDiv.innerHTML = "🔄 Starting conversion... This may take a moment depending on page count.";
+      statusDiv.className = "status";
+      progressDetail.innerHTML = "⏳ Preparing PDF rendering engine...";
+      
+      try {
+        const pptxBlob = await convertPdfToPptx(originalPdfBuffer, originalPdfName);
+        generatedPptxBlob = pptxBlob;
+        downloadBtn.disabled = false;
+        const sizeMB = (pptxBlob.size / (1024 * 1024)).toFixed(2);
+        statusDiv.innerHTML = `✅ Conversion successful! PowerPoint file ready (${sizeMB} MB). Download now.`;
+        statusDiv.className = "status success";
+        progressDetail.innerHTML = `✨ Created ${totalPages} slide(s) · Ready for download.`;
+      } catch (err) {
+        console.error(err);
+        statusDiv.innerHTML = `❌ Conversion failed: ${err.message || "Unknown error"}`;
+        statusDiv.className = "status error";
+        progressDetail.innerHTML = "⚠️ Error occurred during conversion. Check console or try smaller PDF.";
+      } finally {
+        isConverting = false;
+        convertBtn.disabled = false;
+      }
+    });
+    
+    downloadBtn.addEventListener('click', () => {
+      if (!generatedPptxBlob) {
+        statusDiv.innerHTML = "⚠️ No PowerPoint file generated. Please convert first.";
+        statusDiv.className = "status error";
+        return;
+      }
+      const url = URL.createObjectURL(generatedPptxBlob);
+      const a = document.createElement('a');
+      let downloadName = originalPdfName.replace(/\.pdf$/i, '') + '_presentation.pptx';
+      if (!downloadName.endsWith('.pptx')) downloadName += '.pptx';
+      a.href = url;
+      a.download = downloadName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      statusDiv.innerHTML = `📥 Download started: ${downloadName}<br>⭐ Open with PowerPoint, Keynote or Google Slides.`;
+      statusDiv.className = "status success";
+    });
+    
+    // Drag & Drop + file input events
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('drag-over');
+    });
+    dropZone.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        await handleFile(files[0]);
+      }
+    });
+    fileInput.addEventListener('change', async (e) => {
+      if (fileInput.files.length > 0) {
+        await handleFile(fileInput.files[0]);
+      }
+      fileInput.value = '';
+    });
+    
+    statusDiv.innerHTML = "📎 Drag & drop a PDF to convert each page into a PowerPoint slide.";
+    statusDiv.className = "status";
+  })();
+</script>
+</body>
+</html>
