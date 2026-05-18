@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Watermark PDF · Add Text/Image Watermark · iLovePDF Tools</title>
+    <!-- PDF.js for rendering preview -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <!-- pdf-lib for PDF generation and watermarking -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <!-- Fabric.js for image watermark editing (optional crop) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(145deg, #eef0f5 0%, #e0e5ed 100%);
+            min-height: 100vh;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            padding: 24px;
+        }
+
+        .app-container {
+            max-width: 1300px;
+            margin: 0 auto;
+            background: #ffffffea;
+            border-radius: 2rem;
+            box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(98deg, #4a627a, #2c4a6e);
+            padding: 1.2rem 2rem;
+            color: white;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-weight: 700;
+            font-size: 1.6rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toolbar {
+            background: #f8fafc;
+            padding: 0.8rem 1.5rem;
+            border-bottom: 1px solid #e2edf2;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .tools-group {
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .tool-btn, .watermark-type {
+            background: white;
+            border: 1px solid #cbd5e1;
+            padding: 0.45rem 1rem;
+            border-radius: 2rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .tool-btn.active, .watermark-type.active {
+            background: #2c4a6e;
+            color: white;
+            border-color: #2c4a6e;
+        }
+
+        input, select {
+            background: white;
+            border: 1px solid #cbd5e1;
+            padding: 0.4rem 0.8rem;
+            border-radius: 2rem;
+            font-size: 0.8rem;
+        }
+
+        .editor-layout {
+            display: flex;
+            flex-direction: row;
+            min-height: 65vh;
+        }
+
+        .preview-sidebar {
+            width: 260px;
+            background: #f9fbfd;
+            border-right: 1px solid #e2edf2;
+            padding: 1.2rem;
+            overflow-y: auto;
+        }
+
+        .setting-group {
+            margin-bottom: 1.2rem;
+        }
+
+        .setting-group label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            display: block;
+            margin-bottom: 0.3rem;
+            color: #334155;
+        }
+
+        .canvas-container {
+            flex: 1;
+            overflow: auto;
+            background: #eef2f5;
+            display: flex;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .pdf-canvas-wrapper {
+            background: #fff;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            display: inline-block;
+        }
+
+        canvas {
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .status-bar {
+            padding: 0.7rem 1.5rem;
+            background: #f1f5f9;
+            border-top: 1px solid #e2edf2;
+            font-size: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        button.primary-action {
+            background: #2c4a6e;
+            color: white;
+            border: none;
+            padding: 0.5rem 1.5rem;
+            border-radius: 2rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .drop-zone-sm {
+            border: 1px dashed #90a8c4;
+            border-radius: 2rem;
+            padding: 0.2rem 1rem;
+            background: #fff;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .preview-img {
+            max-width: 100%;
+            margin-top: 8px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+
+        @media (max-width: 720px) {
+            .editor-layout { flex-direction: column; }
+            .preview-sidebar { width: 100%; max-height: 260px; }
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div class="header">
+        <h1>💧 Watermark PDF · Protect Your Documents</h1>
+        <div>
+            <div class="drop-zone-sm" id="loadPdfBtn">📂 Load PDF</div>
+            <input type="file" id="pdfUpload" accept="application/pdf">
+            <button id="applyWatermarkBtn" class="primary-action" style="margin-left: 8px;">💾 Apply & Download PDF</button>
+        </div>
+    </div>
+
+    <div class="toolbar">
+        <div class="tools-group">
+            <div id="textWatermarkTab" class="watermark-type active">📝 Text Watermark</div>
+            <div id="imageWatermarkTab" class="watermark-type">🖼️ Image Watermark</div>
+        </div>
+        <div class="tools-group">
+            <span style="font-size:0.7rem;">⚡ Preview updates after applying</span>
+        </div>
+    </div>
+
+    <div class="editor-layout">
+        <div class="preview-sidebar">
+            <!-- Text watermark settings -->
+            <div id="textSettings">
+                <div class="setting-group">
+                    <label>🔤 Watermark Text</label>
+                    <input type="text" id="watermarkText" value="CONFIDENTIAL" style="width:100%;">
+                </div>
+                <div class="setting-group">
+                    <label>🎨 Color</label>
+                    <input type="color" id="textColor" value="#cccccc">
+                </div>
+                <div class="setting-group">
+                    <label>📏 Opacity (0.1 - 1.0)</label>
+                    <input type="range" id="opacitySlider" min="0.1" max="1" step="0.05" value="0.4">
+                    <span id="opacityVal">0.4</span>
+                </div>
+                <div class="setting-group">
+                    <label>🔄 Rotation (degrees)</label>
+                    <input type="range" id="rotationSlider" min="-45" max="45" step="5" value="-25">
+                    <span id="rotationVal">-25°</span>
+                </div>
+                <div class="setting-group">
+                    <label>📐 Font Size</label>
+                    <input type="range" id="fontSizeSlider" min="20" max="120" step="2" value="48">
+                    <span id="fontSizeVal">48</span>
+                </div>
+            </div>
+            <!-- Image watermark settings -->
+            <div id="imageSettings" style="display:none;">
+                <div class="setting-group">
+                    <label>🖼️ Upload Image (PNG/JPEG)</label>
+                    <input type="file" id="watermarkImageInput" accept="image/jpeg,image/png">
+                    <div id="imagePreviewContainer"></div>
+                </div>
+                <div class="setting-group">
+                    <label>📏 Image Opacity</label>
+                    <input type="range" id="imgOpacitySlider" min="0.1" max="1" step="0.05" value="0.5">
+                    <span id="imgOpacityVal">0.5</span>
+                </div>
+                <div class="setting-group">
+                    <label>📐 Image Scale (%)</label>
+                    <input type="range" id="imgScaleSlider" min="10" max="80" step="5" value="25">
+                    <span id="imgScaleVal">25%</span>
+                </div>
+            </div>
+            <div class="setting-group">
+                <label>📄 Pages to Watermark</label>
+                <select id="pagesSelect">
+                    <option value="all">All Pages</option>
+                    <option value="first">First Page Only</option>
+                </select>
+            </div>
+            <div class="setting-group">
+                <label>📍 Position Preset</label>
+                <select id="positionSelect">
+                    <option value="center">Center</option>
+                    <option value="top-left">Top Left</option>
+                    <option value="top-right">Top Right</option>
+                    <option value="bottom-left">Bottom Left</option>
+                    <option value="bottom-right">Bottom Right</option>
+                    <option value="tile">Tile / Repeat</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <div class="pdf-canvas-wrapper">
+                <canvas id="previewCanvas" width="500" height="700"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="status-bar">
+        <span id="pageInfo">📄 No PDF loaded</span>
+        <span>✨ Add text or image watermark — fully client-side</span>
+    </div>
+</div>
+
+<script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    
+    let pdfDoc = null;
+    let totalPages = 0;
+    let currentPdfBuffer = null;
+    let currentPageNum = 1;
+    let watermarkType = 'text'; // 'text' or 'image'
+    let uploadedImageData = null; // base64 image data
+    
+    // DOM elements
+    const previewCanvas = document.getElementById('previewCanvas');
+    const loadPdfBtn = document.getElementById('loadPdfBtn');
+    const pdfUpload = document.getElementById('pdfUpload');
+    const applyWatermarkBtn = document.getElementById('applyWatermarkBtn');
+    const textWatermarkTab = document.getElementById('textWatermarkTab');
+    const imageWatermarkTab = document.getElementById('imageWatermarkTab');
+    const textSettings = document.getElementById('textSettings');
+    const imageSettings = document.getElementById('imageSettings');
+    const watermarkText = document.getElementById('watermarkText');
+    const textColor = document.getElementById('textColor');
+    const opacitySlider = document.getElementById('opacitySlider');
+    const opacityVal = document.getElementById('opacityVal');
+    const rotationSlider = document.getElementById('rotationSlider');
+    const rotationVal = document.getElementById('rotationVal');
+    const fontSizeSlider = document.getElementById('fontSizeSlider');
+    const fontSizeVal = document.getElementById('fontSizeVal');
+    const imgOpacitySlider = document.getElementById('imgOpacitySlider');
+    const imgOpacityVal = document.getElementById('imgOpacityVal');
+    const imgScaleSlider = document.getElementById('imgScaleSlider');
+    const imgScaleVal = document.getElementById('imgScaleVal');
+    const watermarkImageInput = document.getElementById('watermarkImageInput');
+    const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+    const pagesSelect = document.getElementById('pagesSelect');
+    const positionSelect = document.getElementById('positionSelect');
+    const pageInfoSpan = document.getElementById('pageInfo');
+    
+    opacitySlider.addEventListener('input', () => { opacityVal.innerText = opacitySlider.value; refreshPreview(); });
+    rotationSlider.addEventListener('input', () => { rotationVal.innerText = rotationSlider.value + "°"; refreshPreview(); });
+    fontSizeSlider.addEventListener('input', () => { fontSizeVal.innerText = fontSizeSlider.value; refreshPreview(); });
+    textColor.addEventListener('input', () => refreshPreview());
+    watermarkText.addEventListener('input', () => refreshPreview());
+    imgOpacitySlider.addEventListener('input', () => { imgOpacityVal.innerText = imgOpacitySlider.value; refreshPreview(); });
+    imgScaleSlider.addEventListener('input', () => { imgScaleVal.innerText = imgScaleSlider.value + "%"; refreshPreview(); });
+    positionSelect.addEventListener('change', () => refreshPreview());
+    pagesSelect.addEventListener('change', () => refreshPreview());
+    
+    textWatermarkTab.addEventListener('click', () => {
+        watermarkType = 'text';
+        textWatermarkTab.classList.add('active');
+        imageWatermarkTab.classList.remove('active');
+        textSettings.style.display = 'block';
+        imageSettings.style.display = 'none';
+        refreshPreview();
+    });
+    
+    imageWatermarkTab.addEventListener('click', () => {
+        watermarkType = 'image';
+        imageWatermarkTab.classList.add('active');
+        textWatermarkTab.classList.remove('active');
+        textSettings.style.display = 'none';
+        imageSettings.style.display = 'block';
+        refreshPreview();
+    });
+    
+    watermarkImageInput.addEventListener('change', async (e) => {
+        if (e.target.files.length) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                uploadedImageData = ev.target.result;
+                imagePreviewContainer.innerHTML = `<img src="${uploadedImageData}" style="max-width:100%; max-height:80px; border-radius:6px; margin-top:6px;">`;
+                refreshPreview();
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+    
+    loadPdfBtn.addEventListener('click', () => pdfUpload.click());
+    pdfUpload.addEventListener('change', async (e) => {
+        if (e.target.files.length) {
+            const file = e.target.files[0];
+            if (file.type !== 'application/pdf') {
+                alert("Please upload a valid PDF.");
+                return;
+            }
+            const buffer = await file.arrayBuffer();
+            currentPdfBuffer = buffer;
+            pdfDoc = await pdfjsLib.getDocument({ data: buffer.slice() }).promise;
+            totalPages = pdfDoc.numPages;
+            pageInfoSpan.innerText = `📄 Loaded: ${totalPages} pages`;
+            currentPageNum = 1;
+            await renderPreviewPage(1);
+            applyWatermarkBtn.disabled = false;
+        }
+        pdfUpload.value = '';
+    });
+    
+    async function renderPreviewPage(pageNum) {
+        if (!pdfDoc) return;
+        const page = await pdfDoc.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 1.2 });
+        previewCanvas.width = viewport.width;
+        previewCanvas.height = viewport.height;
+        const ctx = previewCanvas.getContext('2d');
+        await page.render({ canvasContext: ctx, viewport: viewport, background: 'white' }).promise;
+        // Draw watermark preview on top
+        await drawWatermarkOnCanvas(ctx, viewport.width, viewport.height);
+    }
+    
+    async function drawWatermarkOnCanvas(ctx, width, height) {
+        if (watermarkType === 'text') {
+            const text = watermarkText.value || "WATERMARK";
+            const fontSize = parseInt(fontSizeSlider.value);
+            const color = textColor.value;
+            const opacity = parseFloat(opacitySlider.value);
+            const rotation = parseFloat(rotationSlider.value) * Math.PI / 180;
+            ctx.save();
+            ctx.globalAlpha = opacity;
+            ctx.font = `${fontSize}px "Segoe UI", Arial, Helvetica, sans-serif`;
+            ctx.fillStyle = color;
+            const textWidth = ctx.measureText(text).width;
+            const position = positionSelect.value;
+            let x = width / 2;
+            let y = height / 2;
+            if (position === 'top-left') { x = 40; y = 60; }
+            else if (position === 'top-right') { x = width - textWidth - 30; y = 60; }
+            else if (position === 'bottom-left') { x = 40; y = height - 40; }
+            else if (position === 'bottom-right') { x = width - textWidth - 30; y = height - 40; }
+            else if (position === 'tile') {
+                // tiling effect
+                const stepX = fontSize * 2.5;
+                const stepY = fontSize * 2;
+                for (let i = -stepX; i < width + stepX; i += stepX) {
+                    for (let j = -stepY; j < height + stepY; j += stepY) {
+                        ctx.save();
+                        ctx.translate(i, j);
+                        ctx.rotate(rotation);
+                        ctx.fillText(text, 0, 0);
+                        ctx.restore();
+                    }
+                }
+                ctx.restore();
+                return;
+            }
+            ctx.translate(x, y);
+            ctx.rotate(rotation);
+            ctx.fillText(text, 0, 0);
+            ctx.restore();
+        } 
+        else if (watermarkType === 'image' && uploadedImageData) {
+            const img = new Image();
+            img.src = uploadedImageData;
+            await new Promise(resolve => { img.onload = resolve; });
+            const opacity = parseFloat(imgOpacitySlider.value);
+            const scalePercent = parseFloat(imgScaleSlider.value) / 100;
+            const imgWidth = img.width * scalePercent;
+            const imgHeight = img.height * scalePercent;
+            const position = positionSelect.value;
+            let x = (width - imgWidth) / 2;
+            let y = (height - imgHeight) / 2;
+            if (position === 'top-left') { x = 20; y = 20; }
+            else if (position === 'top-right') { x = width - imgWidth - 20; y = 20; }
+            else if (position === 'bottom-left') { x = 20; y = height - imgHeight - 20; }
+            else if (position === 'bottom-right') { x = width - imgWidth - 20; y = height - imgHeight - 20; }
+            else if (position === 'tile') {
+                const stepX = imgWidth + 30;
+                const stepY = imgHeight + 30;
+                for (let i = -stepX; i < width + stepX; i += stepX) {
+                    for (let j = -stepY; j < height + stepY; j += stepY) {
+                        ctx.globalAlpha = opacity;
+                        ctx.drawImage(img, i, j, imgWidth, imgHeight);
+                    }
+                }
+                return;
+            }
+            ctx.globalAlpha = opacity;
+            ctx.drawImage(img, x, y, imgWidth, imgHeight);
+            ctx.globalAlpha = 1;
+        }
+    }
+    
+    async function refreshPreview() {
+        if (pdfDoc) await renderPreviewPage(currentPageNum);
+    }
+    
+    // Actual PDF generation with permanent watermark using pdf-lib
+    applyWatermarkBtn.addEventListener('click', async () => {
+        if (!currentPdfBuffer || !pdfDoc) {
+            alert("Please load a PDF first.");
+            return;
+        }
+        const { PDFDocument, degrees, rgb } = PDFLib;
+        const originalPdf = await PDFDocument.load(currentPdfBuffer);
+        const pages = originalPdf.getPages();
+        const targetPages = (pagesSelect.value === 'all') ? pages : [pages[0]];
+        const pageSizeOption = positionSelect.value;
+        
+        for (let idx = 0; idx < targetPages.length; idx++) {
+            const page = targetPages[idx];
+            const { width, height } = page.getSize();
+            
+            if (watermarkType === 'text') {
+                const text = watermarkText.value || "WATERMARK";
+                const fontSize = parseInt(fontSizeSlider.value);
+                const colorHex = textColor.value;
+                const opacity = parseFloat(opacitySlider.value);
+                const rotationDeg = parseFloat(rotationSlider.value);
+                const r = parseInt(colorHex.slice(1,3), 16)/255;
+                const g = parseInt(colorHex.slice(3,5), 16)/255;
+                const b = parseInt(colorHex.slice(5,7), 16)/255;
+                
+                let x = width / 2;
+                let y = height / 2;
+                const textWidth = fontSize * text.length * 0.6;
+                if (pageSizeOption === 'top-left') { x = 50; y = height - 50; }
+                else if (pageSizeOption === 'top-right') { x = width - textWidth - 30; y = height - 50; }
+                else if (pageSizeOption === 'bottom-left') { x = 50; y = 50; }
+                else if (pageSizeOption === 'bottom-right') { x = width - textWidth - 30; y = 50; }
+                
+                if (pageSizeOption === 'tile') {
+                    const stepX = fontSize * 2.8;
+                    const stepY = fontSize * 2.2;
+                    for (let i = -stepX; i < width + stepX; i += stepX) {
+                        for (let j = -stepY; j < height + stepY; j += stepY) {
+                            page.drawText(text, {
+                                x: i,
+                                y: j,
+                                size: fontSize,
+                                color: rgb(r,g,b),
+                                opacity: opacity,
+                                rotate: degrees(rotationDeg),
+                            });
+                        }
+                    }
+                } else {
+                    page.drawText(text, {
+                        x: x,
+                        y: y,
+                        size: fontSize,
+                        color: rgb(r,g,b),
+                        opacity: opacity,
+                        rotate: degrees(rotationDeg),
+                    });
+                }
+            } 
+            else if (watermarkType === 'image' && uploadedImageData) {
+                const imgBytes = await fetch(uploadedImageData).then(res => res.arrayBuffer());
+                let embeddedImage;
+                if (uploadedImageData.includes('image/png')) embeddedImage = await originalPdf.embedPng(imgBytes);
+                else embeddedImage = await originalPdf.embedJpg(imgBytes);
+                const scalePercent = parseFloat(imgScaleSlider.value) / 100;
+                const imgWidth = embeddedImage.width * scalePercent;
+                const imgHeight = embeddedImage.height * scalePercent;
+                const opacity = parseFloat(imgOpacitySlider.value);
+                let x = (width - imgWidth) / 2;
+                let y = (height - imgHeight) / 2;
+                if (pageSizeOption === 'top-left') { x = 30; y = height - imgHeight - 30; }
+                else if (pageSizeOption === 'top-right') { x = width - imgWidth - 30; y = height - imgHeight - 30; }
+                else if (pageSizeOption === 'bottom-left') { x = 30; y = 30; }
+                else if (pageSizeOption === 'bottom-right') { x = width - imgWidth - 30; y = 30; }
+                
+                if (pageSizeOption === 'tile') {
+                    const stepX = imgWidth + 40;
+                    const stepY = imgHeight + 40;
+                    for (let i = -stepX; i < width + stepX; i += stepX) {
+                        for (let j = -stepY; j < height + stepY; j += stepY) {
+                            page.drawImage(embeddedImage, { x: i, y: j, width: imgWidth, height: imgHeight, opacity: opacity });
+                        }
+                    }
+                } else {
+                    page.drawImage(embeddedImage, { x: x, y: y, width: imgWidth, height: imgHeight, opacity: opacity });
+                }
+            }
+        }
+        const pdfBytes = await originalPdf.save();
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'watermarked_document.pdf';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        alert("✅ Watermarked PDF saved successfully!");
+    });
+    
+    // initial disabled state
+    applyWatermarkBtn.disabled = true;
+    pageInfoSpan.innerText = "📂 Load a PDF to add watermark";
+    imageSettings.style.display = 'none';
+</script>
+</body>
+</html>
