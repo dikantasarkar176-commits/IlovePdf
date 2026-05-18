@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Word to PDF · Instant Converter · iLovePDF Tools</title>
+    <!-- PDF-lib for PDF generation -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <!-- mammoth.js for parsing .docx and converting to HTML with styling -->
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.4.2/mammoth.browser.min.js"></script>
+    <!-- html2pdf.js (optional but robust for HTML→PDF) we will use pdf-lib + canvas? Simpler: use html2pdf? but will go with robust: html2pdf.js for accurate formatting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(145deg, #eef2ff 0%, #e0e8f5 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            padding: 24px;
+        }
+
+        /* Modern card */
+        .card {
+            max-width: 980px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 2rem;
+            box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            backdrop-filter: blur(0px);
+            transition: transform 0.2s;
+        }
+
+        .header {
+            background: linear-gradient(98deg, #0a5cfa, #0a3a9e);
+            padding: 1.6rem 2rem;
+            color: white;
+        }
+
+        .header h1 {
+            font-weight: 700;
+            font-size: 1.9rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            letter-spacing: -0.3px;
+        }
+
+        .header h1:before {
+            content: "📄➜📑";
+            font-size: 1.8rem;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 0.9rem;
+            margin-top: 0.3rem;
+        }
+
+        .content {
+            padding: 2rem;
+        }
+
+        .drop-zone {
+            border: 2px dashed #7c9ed6;
+            border-radius: 1.5rem;
+            background: #fefefe;
+            text-align: center;
+            padding: 2.2rem 1rem;
+            transition: all 0.2s;
+            cursor: pointer;
+            margin-bottom: 1.8rem;
+        }
+
+        .drop-zone.drag-over {
+            background: #e9f0ff;
+            border-color: #0a5cfa;
+            transform: scale(0.98);
+        }
+
+        .drop-icon {
+            font-size: 3.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .drop-text {
+            font-weight: 600;
+            font-size: 1.1rem;
+            background: linear-gradient(135deg, #0a5cfa, #3b82f6);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        .drop-sub {
+            font-size: 0.8rem;
+            color: #5478a5;
+            margin-top: 0.3rem;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .options-panel {
+            background: #f3f7fc;
+            border-radius: 1.2rem;
+            padding: 1rem 1.4rem;
+            margin: 1rem 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .option-group {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        select, .quality-badge {
+            background: white;
+            border: 1px solid #cbd5e1;
+            padding: 0.3rem 0.8rem;
+            border-radius: 2rem;
+            font-size: 0.8rem;
+            font-family: inherit;
+        }
+
+        .file-info {
+            background: #eef3fc;
+            border-radius: 1rem;
+            padding: 0.8rem 1.2rem;
+            font-size: 0.85rem;
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 1.2rem;
+            border-left: 5px solid #0a5cfa;
+        }
+
+        .badge {
+            background: #0a5cfa;
+            border-radius: 30px;
+            padding: 0.2rem 1rem;
+            color: white;
+            font-size: 0.7rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 1.2rem;
+        }
+
+        button {
+            border: none;
+            padding: 0.75rem 1.8rem;
+            border-radius: 3rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button.primary {
+            background: linear-gradient(110deg, #0a5cfa, #0a4bc2);
+            color: white;
+            box-shadow: 0 2px 6px rgba(10,92,250,0.2);
+        }
+
+        button.primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 18px rgba(10,92,250,0.3);
+        }
+
+        button.secondary {
+            background: #334155;
+            color: white;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 1.2rem;
+            padding: 0.9rem;
+            border-radius: 1rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .success {
+            background: #e0f2e9;
+            color: #0b5e42;
+            border-left: 5px solid #28a27a;
+        }
+
+        .error {
+            background: #ffe6e5;
+            color: #bc3900;
+            border-left: 5px solid #d9534f;
+        }
+
+        .preview-area {
+            margin-top: 1rem;
+            background: #fafdff;
+            border-radius: 1rem;
+            padding: 0.8rem;
+            max-height: 240px;
+            overflow-y: auto;
+            border: 1px solid #e2edf2;
+            display: none;
+        }
+
+        .preview-area h4 {
+            font-size: 0.8rem;
+            margin-bottom: 0.4rem;
+            color: #0a5cfa;
+        }
+
+        .preview-content {
+            font-size: 0.75rem;
+            color: #2c3e4e;
+            white-space: pre-wrap;
+        }
+
+        hr {
+            margin: 1.2rem 0;
+            border: none;
+            height: 1px;
+            background: #e2edf2;
+        }
+
+        footer {
+            font-size: 0.7rem;
+            text-align: center;
+            padding: 1rem;
+            color: #6b8eae;
+            border-top: 1px solid #eef2f8;
+            background: #ffffffc9;
+        }
+
+        @media (max-width: 550px) {
+            .content {
+                padding: 1.2rem;
+            }
+            .options-panel {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="header">
+        <h1>Word to PDF Converter</h1>
+        <p>High-fidelity .DOCX to PDF · Preserve formatting, tables & images</p>
+    </div>
+    <div class="content">
+        <div id="dropZone" class="drop-zone">
+            <div class="drop-icon">📝 ➜ 📕</div>
+            <div class="drop-text">Upload Word document (.docx)</div>
+            <div class="drop-sub">Drag & drop or click · Max 25 MB</div>
+            <input type="file" id="fileInput" accept=".docx">
+        </div>
+
+        <div id="fileInfoArea" class="file-info">
+            <span>📄 <strong id="fileName"></strong></span>
+            <span>📦 <span id="fileSize"></span> KB</span>
+            <span class="badge" id="pageHint">ready to convert</span>
+        </div>
+
+        <div class="options-panel">
+            <div class="option-group">
+                <label>📐 Page Size:</label>
+                <select id="pageSizeSelect">
+                    <option value="A4">A4 (210x297mm)</option>
+                    <option value="Letter">Letter (8.5x11in)</option>
+                </select>
+            </div>
+            <div class="option-group">
+                <label>🎨 Quality:</label>
+                <select id="qualitySelect">
+                    <option value="high">High (best for printing)</option>
+                    <option value="medium" selected>Medium (balanced)</option>
+                    <option value="low">Low (smaller file)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <button id="convertBtn" class="primary" disabled>🔄 Convert to PDF</button>
+            <button id="downloadBtn" class="secondary" disabled>💾 Download PDF</button>
+        </div>
+
+        <div id="statusMessage" class="status"></div>
+        <div id="previewBox" class="preview-area">
+            <h4><i class="fas fa-eye"></i> Document preview (first 150 chars)</h4>
+            <div id="previewText" class="preview-content"></div>
+        </div>
+        <hr>
+        <div class="info-text" style="font-size:0.75rem; text-align:center; color:#5478a5;">
+            ⚡ 100% client-side conversion · Uses Mammoth.js + html2pdf · Fonts & layout preserved
+        </div>
+    </div>
+    <footer>
+        🧠 Secure conversion · Your .docx never leaves your device · Instant PDF generation
+    </footer>
+</div>
+
+<script>
+    // DOM elements
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const convertBtn = document.getElementById('convertBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const fileNameSpan = document.getElementById('fileName');
+    const fileSizeSpan = document.getElementById('fileSize');
+    const fileInfoArea = document.getElementById('fileInfoArea');
+    const statusDiv = document.getElementById('statusMessage');
+    const previewTextDiv = document.getElementById('previewText');
+    const previewBox = document.getElementById('previewBox');
+    const pageSizeSelect = document.getElementById('pageSizeSelect');
+    const qualitySelect = document.getElementById('qualitySelect');
+
+    let currentDocxArrayBuffer = null;
+    let currentFileName = "";
+    let convertedPdfBlob = null;
+    let isConverting = false;
+    let rawDocxHtml = ""; // store converted HTML for preview
+
+    function formatKB(bytes) {
+        if (!bytes) return "0";
+        return (bytes / 1024).toFixed(1);
+    }
+
+    function resetState() {
+        convertedPdfBlob = null;
+        downloadBtn.disabled = true;
+        rawDocxHtml = "";
+        if(previewBox) previewBox.style.display = "none";
+        statusDiv.innerHTML = "";
+    }
+
+    async function handleFile(file) {
+        if (!file || !file.name.endsWith('.docx')) {
+            statusDiv.innerHTML = "❌ Please select a valid .docx Word document.";
+            statusDiv.className = "status error";
+            return false;
+        }
+        if (file.size > 30 * 1024 * 1024) {
+            statusDiv.innerHTML = "❌ File exceeds 30 MB. Please choose a smaller document.";
+            statusDiv.className = "status error";
+            return false;
+        }
+        currentFileName = file.name;
+        fileNameSpan.innerText = file.name;
+        fileSizeSpan.innerText = formatKB(file.size);
+        fileInfoArea.style.display = "flex";
+        resetState();
+        
+        // read as arraybuffer for later conversion
+        const buffer = await file.arrayBuffer();
+        currentDocxArrayBuffer = buffer;
+        
+        // Extract preview text & validate docx (using mammoth)
+        try {
+            const result = await mammoth.extractRawText({ arrayBuffer: buffer });
+            const rawText = result.value;
+            const preview = rawText.substring(0, 200) + (rawText.length > 200 ? "…" : "");
+            previewTextDiv.innerText = preview || "(No extractable text preview)";
+            previewBox.style.display = "block";
+            statusDiv.innerHTML = "✅ Word document loaded. Click 'Convert to PDF' to generate high-quality PDF.";
+            statusDiv.className = "status success";
+            convertBtn.disabled = false;
+            return true;
+        } catch (err) {
+            console.error(err);
+            statusDiv.innerHTML = "❌ Failed to read .docx: " + (err.message || "unsupported format");
+            statusDiv.className = "status error";
+            convertBtn.disabled = true;
+            return false;
+        }
+    }
+    
+    // Main conversion: Word (docx) -> HTML (styled) -> PDF using html2pdf
+    async function convertWordToPdf() {
+        if (!currentDocxArrayBuffer) {
+            statusDiv.innerHTML = "⚠️ No Word file loaded.";
+            return null;
+        }
+        
+        statusDiv.innerHTML = "🔄 Processing document & building PDF... Please wait.";
+        statusDiv.className = "status";
+        convertBtn.disabled = true;
+        downloadBtn.disabled = true;
+        
+        try {
+            // Step 1: Convert docx array buffer to styled HTML using mammoth
+            const options = {
+                styleMap: [
+                    "p[style-name='Normal'] => p:fresh",
+                    "r[style-name='Strong'] => strong",
+                    "em => em"
+                ],
+                convertImage: mammoth.images.imgElement(function(image) {
+                    // embed images as base64 for accurate PDF (max 2MB per image safe)
+                    return image.read("base64").then(function(imageBuffer) {
+                        return {
+                            src: "data:" + image.contentType + ";base64," + imageBuffer,
+                            alt: "image"
+                        };
+                    }).catch(function() {
+                        return { src: "", alt: "fallback" };
+                    });
+                })
+            };
+            
+            const result = await mammoth.convertToHtml({ arrayBuffer: currentDocxArrayBuffer }, options);
+            const htmlContent = result.value;
+            rawDocxHtml = htmlContent;
+            const warnings = result.messages;
+            if (warnings.length) console.warn(warnings);
+            
+            // Build a full HTML document with proper styles to mimic Word layout
+            const styleRules = `
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                body {
+                    font-family: 'Times New Roman', Times, serif, 'Segoe UI', Arial;
+                    font-size: 12pt;
+                    line-height: 1.45;
+                    color: #1e2a3a;
+                    padding: 1.2cm 1.5cm;
+                    background: white;
+                }
+                h1, h2, h3, h4 {
+                    margin-top: 0.8rem;
+                    margin-bottom: 0.4rem;
+                    font-weight: 600;
+                }
+                p {
+                    margin-bottom: 0.5rem;
+                }
+                table {
+                    border-collapse: collapse;
+                    width: 100%;
+                    margin: 1rem 0;
+                }
+                td, th {
+                    border: 1px solid #aaa;
+                    padding: 6px 8px;
+                }
+                img {
+                    max-width: 100%;
+                    height: auto;
+                }
+                ul, ol {
+                    margin: 0.5rem 0 0.5rem 1.8rem;
+                }
+                .page-break {
+                    page-break-before: always;
+                }
+                @media print {
+                    body {
+                        margin: 0;
+                        padding: 0.75cm;
+                    }
+                }
+            `;
+            
+            const fullHtml = `<!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Converted Document</title>
+                <style>${styleRules}</style>
+            </head>
+            <body>
+                ${htmlContent}
+            </body>
+            </html>`;
+            
+            // Create a temporary container to render and measure
+            const container = document.createElement('div');
+            container.style.position = 'absolute';
+            container.style.top = '-9999px';
+            container.style.left = '-9999px';
+            container.style.width = '800px';
+            container.style.background = 'white';
+            container.innerHTML = fullHtml;
+            document.body.appendChild(container);
+            
+            // Get quality & page size mapping
+            const qualityMap = { high: 2, medium: 1.5, low: 1.0 };
+            const scaleVal = qualityMap[qualitySelect.value] || 1.5;
+            const pageSize = pageSizeSelect.value; // A4 or Letter
+            let pdfConfig = {
+                margin: [0.5, 0.5, 0.5, 0.5], // top, right, bottom, left (in)
+                filename: `${currentFileName.replace(/\.docx$/i, '')}_converted.pdf`,
+                image: { type: 'jpeg', quality: qualitySelect.value === 'high' ? 0.95 : (qualitySelect.value === 'medium' ? 0.85 : 0.7) },
+                html2canvas: { scale: scaleVal, useCORS: true, letterRendering: true },
+                jsPDF: { unit: 'in', format: pageSize === 'A4' ? 'a4' : 'letter', orientation: 'portrait' }
+            };
+            
+            // Use html2pdf to generate PDF from the HTML container
+            const worker = html2pdf().set(pdfConfig).from(container);
+            const pdfBlob = await worker.outputPdf('blob');
+            
+            document.body.removeChild(container);
+            
+            const sizeMB = (pdfBlob.size / (1024 * 1024)).toFixed(2);
+            statusDiv.innerHTML = `✅ Conversion successful! PDF size: ${sizeMB} MB. Click download.`;
+            statusDiv.className = "status success";
+            convertedPdfBlob = pdfBlob;
+            downloadBtn.disabled = false;
+            return pdfBlob;
+        } catch (err) {
+            console.error("Conversion error: ", err);
+            statusDiv.innerHTML = `❌ Conversion failed: ${err.message || "unknown error"}. Check console.`;
+            statusDiv.className = "status error";
+            return null;
+        } finally {
+            convertBtn.disabled = false;
+            isConverting = false;
+        }
+    }
+    
+    // Event listeners
+    convertBtn.addEventListener('click', async () => {
+        if (!currentDocxArrayBuffer) {
+            statusDiv.innerHTML = "⚠️ No Word file loaded. Please upload a .docx file.";
+            statusDiv.className = "status error";
+            return;
+        }
+        if (isConverting) return;
+        isConverting = true;
+        convertBtn.disabled = true;
+        await convertWordToPdf();
+        convertBtn.disabled = false;
+        isConverting = false;
+    });
+    
+    downloadBtn.addEventListener('click', () => {
+        if (!convertedPdfBlob) {
+            statusDiv.innerHTML = "⚠️ No PDF generated. Convert a document first.";
+            statusDiv.className = "status error";
+            return;
+        }
+        const url = URL.createObjectURL(convertedPdfBlob);
+        const a = document.createElement('a');
+        let downloadName = currentFileName.replace(/\.docx$/i, '') + '_converted.pdf';
+        if (!downloadName.endsWith('.pdf')) downloadName += '.pdf';
+        a.href = url;
+        a.download = downloadName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        statusDiv.innerHTML = `📥 Download started: ${downloadName}`;
+    });
+    
+    // Drag & drop handlers
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('drag-over');
+    });
+    dropZone.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            await handleFile(files[0]);
+        }
+    });
+    fileInput.addEventListener('change', async (e) => {
+        if (fileInput.files.length > 0) {
+            await handleFile(fileInput.files[0]);
+        }
+        fileInput.value = '';
+    });
+    
+    // initial status
+    statusDiv.innerHTML = "📂 Upload a .docx file and convert to professional PDF.";
+    statusDiv.className = "status";
+    fileInfoArea.style.display = "none";
+    previewBox.style.display = "none";
+</script>
+</body>
+</html>
