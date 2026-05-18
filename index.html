@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>iLovePDF · Simplify Your Digital Life</title>
+    <!-- Google Fonts + modern font stack -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+    <!-- Font Awesome 6 (free icons) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f8fafd;
+            color: #1e2a3e;
+            scroll-behavior: smooth;
+        }
+
+        /* modern blue theme variables */
+        :root {
+            --primary-blue: #0a5cfa;
+            --primary-dark: #004ecc;
+            --primary-soft: #eef4ff;
+            --gray-bg: #f9fbfe;
+            --text-dark: #0f172a;
+            --text-muted: #475569;
+            --border-light: #e2edf2;
+            --card-shadow: 0 12px 30px rgba(0, 0, 0, 0.05);
+            --hover-shadow: 0 20px 35px -8px rgba(10, 92, 250, 0.15);
+        }
+
+        /* container */
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* header & navigation */
+        .header {
+            background: white;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 1px 6px rgba(0, 0, 0, 0.02);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(0px);
+        }
+
+        .nav-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            padding: 1rem 0;
+        }
+
+        .logo h1 {
+            font-size: 1.85rem;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            background: linear-gradient(135deg, #0a5cfa, #0a3a9e);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        .logo span {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--primary-blue);
+            display: block;
+            letter-spacing: -0.2px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            font-weight: 500;
+            color: #2d3a4b;
+            transition: 0.2s;
+            font-size: 1rem;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--primary-blue);
+        }
+
+        .contact-btn {
+            background: var(--primary-blue);
+            color: white !important;
+            padding: 0.5rem 1.2rem;
+            border-radius: 2rem;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+
+        .contact-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        /* mobile menu toggle */
+        .menu-toggle {
+            display: none;
+            font-size: 1.6rem;
+            cursor: pointer;
+            color: var(--primary-blue);
+        }
+
+        /* hero section */
+        .hero {
+            background: linear-gradient(120deg, #ffffff 0%, #f0f7ff 100%);
+            padding: 3.5rem 0 4rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .hero-grid {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .hero-text {
+            flex: 1;
+        }
+
+        .hero-text h2 {
+            font-size: 2.8rem;
+            font-weight: 800;
+            line-height: 1.2;
+            background: linear-gradient(to right, #0f2b3d, #0a5cfa);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin-bottom: 1rem;
+        }
+
+        .hero-text p {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            max-width: 500px;
+            margin-bottom: 2rem;
+        }
+
+        .hero-stats {
+            display: flex;
+            gap: 2rem;
+            margin-top: 1rem;
+        }
+
+        .badge-blue {
+            background: white;
+            border-radius: 40px;
+            padding: 0.3rem 1rem;
+            font-weight: 500;
+            font-size: 0.85rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            color: var(--primary-blue);
+        }
+
+        .hero-illustration {
+            flex: 0.8;
+            text-align: center;
+        }
+
+        .hero-illustration i {
+            font-size: 8rem;
+            color: var(--primary-blue);
+            opacity: 0.8;
+        }
+
+        /* tools grid */
+        .tools-section {
+            padding: 4rem 0;
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .section-title h3 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .section-title p {
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 1.2rem;
+        }
+
+        .tool-card {
+            background: white;
+            border-radius: 1.2rem;
+            padding: 1rem 0.8rem;
+            text-align: center;
+            transition: all 0.25s ease;
+            cursor: pointer;
+            border: 1px solid var(--border-light);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+            text-decoration: none;
+            color: var(--text-dark);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .tool-card i {
+            font-size: 1.8rem;
+            color: var(--primary-blue);
+        }
+
+        .tool-card span {
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .tool-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--hover-shadow);
+            border-color: var(--primary-blue);
+        }
+
+        /* extra tools row */
+        .extra-tools-note {
+            text-align: center;
+            margin-top: 2rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* footer */
+        .footer {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 3rem 0 2rem;
+            margin-top: 2rem;
+        }
+
+        .footer-content {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 2rem;
+        }
+
+        .footer-brand .footer-logo {
+            font-size: 1.7rem;
+            font-weight: 700;
+            color: white;
+        }
+
+        .footer-brand p {
+            color: #94a3b8;
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 3rem;
+            flex-wrap: wrap;
+        }
+
+        .footer-links-column h4 {
+            color: white;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .footer-links-column a {
+            display: block;
+            color: #cbd5e1;
+            text-decoration: none;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            transition: 0.2s;
+        }
+
+        .footer-links-column a:hover {
+            color: var(--primary-blue);
+        }
+
+        .contact-info {
+            margin-top: 1rem;
+            background: rgba(255,255,255,0.05);
+            padding: 1rem;
+            border-radius: 1rem;
+        }
+
+        .contact-info p {
+            font-size: 0.8rem;
+            margin: 6px 0;
+        }
+
+        .footer-bottom {
+            text-align: center;
+            border-top: 1px solid #1e293b;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            font-size: 0.75rem;
+            color: #7e8aa2;
+        }
+
+        button, .tool-card {
+            cursor: pointer;
+        }
+
+        /* responsiveness */
+        @media (max-width: 860px) {
+            .menu-toggle {
+                display: block;
+            }
+            .nav-links {
+                display: none;
+                width: 100%;
+                flex-direction: column;
+                background: white;
+                padding: 1rem 0;
+                gap: 1rem;
+                margin-top: 0.5rem;
+                border-top: 1px solid var(--border-light);
+            }
+            .nav-links.show {
+                display: flex;
+            }
+            .hero-text h2 {
+                font-size: 2rem;
+            }
+            .hero-grid {
+                flex-direction: column;
+                text-align: center;
+            }
+            .hero-stats {
+                justify-content: center;
+            }
+            .tools-grid {
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            }
+            .footer-content {
+                flex-direction: column;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 0 18px;
+            }
+            .tools-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.8rem;
+            }
+            .tool-card {
+                padding: 0.8rem 0.4rem;
+            }
+        }
+
+        .btn-primary {
+            background: var(--primary-blue);
+            color: white;
+            border: none;
+            padding: 0.8rem 1.8rem;
+            border-radius: 3rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-size: 0.95rem;
+            transition: 0.2s;
+            text-decoration: none;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(10, 92, 250, 0.25);
+        }
+
+        .search-note {
+            font-size: 0.75rem;
+            background: var(--primary-soft);
+            display: inline-block;
+            padding: 0.2rem 0.8rem;
+            border-radius: 30px;
+        }
+
+        i.fa, i.far, i.fas {
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <div class="container nav-container">
+        <div class="logo">
+            <h1>iLovePDF <span style="font-size:0.85rem; display:inline-block;">⚡tools wonder</span></h1>
+        </div>
+        <div class="menu-toggle" id="mobileMenu">
+            <i class="fas fa-bars"></i>
+        </div>
+        <div class="nav-links" id="navLinks">
+            <a href="#" class="active">Home</a>
+            <a href="#tools">Tools</a>
+            <a href="#contact-section">Contact</a>
+            <a href="mailto:ilovepdfdikantasarkar176@gmail.com" class="contact-btn"><i class="fas fa-envelope"></i> Gmail</a>
+        </div>
+    </div>
+</header>
+
+<main>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container hero-grid">
+            <div class="hero-text">
+                <h2>Simplify your digital life</h2>
+                <p>Fast, secure & modern PDF tools. Merge, split, compress, convert & edit — all in one elegant platform.</p>
+                <div class="hero-stats">
+                    <span class="badge-blue"><i class="fas fa-check-circle"></i> 25+ Tools</span>
+                    <span class="badge-blue"><i class="fas fa-lock"></i> 100% Secure</span>
+                    <span class="badge-blue"><i class="fas fa-tachometer-alt"></i> Instant</span>
+                </div>
+                <div style="margin-top: 2rem;">
+                    <a href="#tools" class="btn-primary"><i class="fas fa-magic"></i> Explore Tools</a>
+                </div>
+            </div>
+            <div class="hero-illustration">
+                <i class="fas fa-file-pdf"></i>
+                <i class="fas fa-arrows-spin" style="font-size: 2rem; margin: 0 0.5rem; color:#0a5cfa;"></i>
+                <i class="fas fa-file-powerpoint"></i>
+            </div>
+        </div>
+    </section>
+
+    <!-- Tools Grid Section (all 26 tools listed) -->
+    <section id="tools" class="tools-section">
+        <div class="container">
+            <div class="section-title">
+                <h3>📄 Every Tool You Need</h3>
+                <p>Professional PDF toolkit — from conversion to protection</p>
+            </div>
+            <div class="tools-grid" id="toolsGrid">
+                <!-- tools will be injected via JS exactly as required list -->
+            </div>
+            <div class="extra-tools-note">
+                <i class="fas fa-crown"></i> Including Image Resizer & full OCR suite — all in one place
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact / CEO Info + email & phone -->
+    <section id="contact-section" style="padding: 2rem 0 3rem; background: white;">
+        <div class="container">
+            <div style="background: #f0f6fe; border-radius: 2rem; padding: 2rem; text-align: center; max-width: 700px; margin: 0 auto;">
+                <i class="fas fa-headset" style="font-size: 2.5rem; color: var(--primary-blue);"></i>
+                <h3 style="margin: 0.5rem 0; font-size: 1.5rem;">Contact & Leadership</h3>
+                <p style="color: #2d4a6e;"><strong>CEO & Founder:</strong> BIKANTA SARKAR</p>
+                <div style="margin: 1rem 0;">
+                    <p><i class="fas fa-envelope"></i> <strong>Email:</strong> ilovepdfdikantasarkar176@gmail.com</p>
+                    <p><i class="fas fa-phone-alt"></i> <strong>Phone:</strong> +91 6001542020</p>
+                </div>
+                <div style="background: white; border-radius: 1.5rem; padding: 1rem; margin-top: 0.5rem;">
+                    <i class="fas fa-globe"></i> Official support via Gmail only – we reply within 24h.
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- Footer -->
+<footer class="footer">
+    <div class="container footer-content">
+        <div class="footer-brand">
+            <div class="footer-logo">iLovePDF <span style="font-weight:400;">✨</span></div>
+            <p>Simplifying your digital life.<br>Secure, fast, and modern PDF solutions.</p>
+            <div class="contact-info" style="margin-top:1rem; background: rgba(255,255,255,0.02);">
+                <p><i class="fas fa-envelope"></i> ilovepdfdikantasarkar176@gmail.com</p>
+                <p><i class="fas fa-phone"></i> 6001542020</p>
+                <p><i class="fas fa-user-tie"></i> CEO: BIKANTA SARKAR</p>
+            </div>
+        </div>
+        <div class="footer-links">
+            <div class="footer-links-column">
+                <h4>Quick Links</h4>
+                <a href="#">Home</a>
+                <a href="#tools">All Tools</a>
+                <a href="#contact-section">Contact</a>
+            </div>
+            <div class="footer-links-column">
+                <h4>Legal</h4>
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Use</a>
+                <a href="#">Cookies</a>
+            </div>
+            <div class="footer-links-column">
+                <h4>Resources</h4>
+                <a href="#">Blog</a>
+                <a href="#">Developer API</a>
+                <a href="#">Help Center</a>
+            </div>
+        </div>
+    </div>
+    <div class="container footer-bottom">
+        <p>© 2025 iLovePDF — All trademarks belong to their respective owners. Built for productivity.</p>
+        <p style="margin-top: 0.5rem;"><i class="fas fa-shield-alt"></i> Client-side processing • Your files stay private</p>
+    </div>
+</footer>
+
+<script>
+    // Full list of tools as requested (iLovePDF tools names including Image Resizer)
+    const toolsList = [
+        "Merge PDF", "Split PDF", "Compress PDF", "PDF to Word", "Word to PDF",
+        "PDF to PowerPoint", "PowerPoint to PDF", "PDF to Excel", "Excel to PDF",
+        "Edit PDF", "PDF to JPG", "JPG to PDF", "Sign PDF", "Watermark PDF",
+        "Rotate PDF", "HTML to PDF", "Unlock PDF", "Protect PDF", "Organize PDF",
+        "PDF Repair", "Page Numbers", "Scan to PDF", "OCR PDF", "Compare PDF",
+        "Crop PDF", "Image Resizer"
+    ];
+
+    // Icon mapping (font awesome best match)
+    function getIconForTool(toolName) {
+        const icons = {
+            "Merge PDF": "fa-object-group",
+            "Split PDF": "fa-cut",
+            "Compress PDF": "fa-file-zipper",
+            "PDF to Word": "fa-file-word",
+            "Word to PDF": "fa-file-pdf",
+            "PDF to PowerPoint": "fa-file-powerpoint",
+            "PowerPoint to PDF": "fa-file-pdf",
+            "PDF to Excel": "fa-file-excel",
+            "Excel to PDF": "fa-file-pdf",
+            "Edit PDF": "fa-pen-to-square",
+            "PDF to JPG": "fa-file-image",
+            "JPG to PDF": "fa-file-pdf",
+            "Sign PDF": "fa-signature",
+            "Watermark PDF": "fa-droplet",
+            "Rotate PDF": "fa-rotate-right",
+            "HTML to PDF": "fa-code",
+            "Unlock PDF": "fa-unlock-keyhole",
+            "Protect PDF": "fa-lock",
+            "Organize PDF": "fa-layer-group",
+            "PDF Repair": "fa-screwdriver-wrench",
+            "Page Numbers": "fa-hashtag",
+            "Scan to PDF": "fa-scanner",
+            "OCR PDF": "fa-text-height",
+            "Compare PDF": "fa-code-compare",
+            "Crop PDF": "fa-crop",
+            "Image Resizer": "fa-image"
+        };
+        return icons[toolName] || "fa-toolbox";
+    }
+
+    const gridContainer = document.getElementById('toolsGrid');
+    if (gridContainer) {
+        toolsList.forEach(tool => {
+            const card = document.createElement('a');
+            card.href = "#";
+            card.className = "tool-card";
+            // optional onclick demo alert (non-intrusive)
+            card.addEventListener('click', (e) => {
+                e.preventDefault();
+                alert(`✨ ${tool} tool is ready in our professional suite. (Demo interaction)\nUpgrade to premium for full access.`);
+            });
+            const icon = document.createElement('i');
+            icon.className = `fas ${getIconForTool(tool)}`;
+            const span = document.createElement('span');
+            span.innerText = tool;
+            card.appendChild(icon);
+            card.appendChild(span);
+            gridContainer.appendChild(card);
+        });
+    }
+
+    // mobile menu toggle
+    const mobileBtn = document.getElementById('mobileMenu');
+    const navLinks = document.getElementById('navLinks');
+    if (mobileBtn) {
+        mobileBtn.addEventListener('click', () => {
+            navLinks.classList.toggle('show');
+        });
+    }
+
+    // close mobile menu after clicking a link
+    const allNavLinks = document.querySelectorAll('.nav-links a');
+    allNavLinks.forEach(link => {
+        link.addEventListener('click', () => {
+            if (navLinks.classList.contains('show')) {
+                navLinks.classList.remove('show');
+            }
+        });
+    });
+
+    // smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function(e) {
+            const href = this.getAttribute('href');
+            if (href === "#" || href === "") return;
+            const target = document.querySelector(href);
+            if (target) {
+                e.preventDefault();
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    });
+</script>
+</body>
+</html>
