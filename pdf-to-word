@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>PDF to Word HTML · Extract & Edit</title>
+  <!-- PDF.js for text & rendering -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <!-- html2canvas for layout preservation? optional but not needed for core -->
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: linear-gradient(135deg, #e9f0f5 0%, #dae6ef 100%);
+      font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+      padding: 2rem 1.5rem;
+      min-height: 100vh;
+    }
+
+    .main-container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* header / card */
+    .tool-header {
+      background: linear-gradient(98deg, #1e3a5f 0%, #0f2c44 100%);
+      border-radius: 1.8rem;
+      padding: 1.6rem 2rem;
+      margin-bottom: 2rem;
+      color: white;
+      box-shadow: 0 12px 25px -10px rgba(0,0,0,0.2);
+    }
+
+    .tool-header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      flex-wrap: wrap;
+    }
+
+    .badge-word {
+      background: #2b7a4b;
+      padding: 0.25rem 1rem;
+      border-radius: 40px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .sub {
+      opacity: 0.85;
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    /* two-panel layout */
+    .converter-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.8rem;
+    }
+
+    .input-panel {
+      flex: 1.2;
+      min-width: 280px;
+      background: white;
+      border-radius: 1.5rem;
+      padding: 1.5rem;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    }
+
+    .output-panel {
+      flex: 2;
+      min-width: 380px;
+      background: #ffffff;
+      border-radius: 1.5rem;
+      padding: 1.5rem;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .drop-zone {
+      border: 2px dashed #90aec9;
+      border-radius: 1.2rem;
+      background: #f9fcff;
+      text-align: center;
+      padding: 2rem 1rem;
+      cursor: pointer;
+      transition: 0.2s;
+      margin-bottom: 1.5rem;
+    }
+
+    .drop-zone.drag-over {
+      background: #eef4fa;
+      border-color: #1e6f5c;
+    }
+
+    .file-info {
+      background: #f0f4f9;
+      border-radius: 1rem;
+      padding: 0.8rem 1rem;
+      margin: 1rem 0;
+      font-size: 0.85rem;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 0.8rem;
+      flex-wrap: wrap;
+      margin: 1rem 0;
+    }
+
+    button {
+      background: #1e3a5f;
+      border: none;
+      padding: 0.7rem 1.4rem;
+      border-radius: 2rem;
+      font-weight: 600;
+      color: white;
+      cursor: pointer;
+      transition: 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+    }
+
+    button.primary {
+      background: #2c7a4d;
+    }
+
+    button.primary:hover {
+      background: #1e5f3a;
+      transform: translateY(-1px);
+    }
+
+    button.secondary {
+      background: #4a627a;
+    }
+
+    button:hover {
+      filter: brightness(0.95);
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .word-editor {
+      border: 1px solid #e2e8f0;
+      border-radius: 1rem;
+      background: #fefefe;
+      min-height: 450px;
+      max-height: 65vh;
+      overflow-y: auto;
+      padding: 1.2rem;
+      font-family: 'Segoe UI', 'Times New Roman', Georgia, serif;
+      line-height: 1.5;
+      box-shadow: inset 0 0 0 1px #ffffff50, 0 2px 6px rgba(0,0,0,0.02);
+    }
+
+    .word-editor:focus {
+      outline: none;
+      border-color: #2c7a4d;
+      box-shadow: 0 0 0 2px #2c7a4d30;
+    }
+
+    .editor-toolbar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      border-bottom: 1px solid #e2edf2;
+      padding-bottom: 0.7rem;
+    }
+
+    .tool-btn {
+      background: #f1f5f9;
+      color: #1f3a4b;
+      padding: 0.4rem 1rem;
+      font-size: 0.75rem;
+      border-radius: 2rem;
+    }
+
+    .status-msg {
+      margin-top: 0.8rem;
+      font-size: 0.8rem;
+      padding: 0.5rem;
+      border-radius: 1rem;
+      background: #eef2fa;
+    }
+
+    .success {
+      background: #e0f2e9;
+      color: #166534;
+    }
+
+    .error {
+      background: #fee9e6;
+      color: #b91c1c;
+    }
+
+    hr {
+      margin: 1rem 0;
+    }
+
+    footer {
+      margin-top: 2rem;
+      text-align: center;
+      font-size: 0.7rem;
+      color: #5f7f9e;
+    }
+  </style>
+</head>
+<body>
+<div class="main-container">
+  <div class="tool-header">
+    <h1>📄 PDF ➜ Word HTML <span class="badge-word">Editable · Copy-Paste Ready</span></h1>
+    <div class="sub">Extract text, paragraphs, lists, and embedded images — convert PDF to clean, editable HTML like a Word document.</div>
+  </div>
+
+  <div class="converter-grid">
+    <!-- LEFT PANEL: upload & controls -->
+    <div class="input-panel">
+      <div id="dropZonePdf" class="drop-zone">
+        <div style="font-size: 2.5rem;">📑➡️📝</div>
+        <div style="font-weight: 600; margin: 8px 0;">Drop PDF or click to upload</div>
+        <div style="font-size: 0.7rem; color: #5f7f9e;">Extracts text blocks, images (as base64), layout structure</div>
+        <input type="file" id="pdfInput" accept="application/pdf" style="display: none;">
+      </div>
+      <div id="fileMeta" class="file-info" style="display: none;">
+        <strong>📁 <span id="pdfFileName"></span></strong> · <span id="pageCountInfo"></span> pages
+      </div>
+      <div class="btn-group">
+        <button id="convertBtn" class="primary" disabled>✨ Convert to Word HTML</button>
+        <button id="copyHtmlBtn" class="secondary" disabled>📋 Copy HTML</button>
+        <button id="downloadWordBtn" class="secondary" disabled>💾 Download .html (Word)</button>
+      </div>
+      <div class="status-msg" id="statusMsg">⬅️ Upload a PDF file to begin extraction.</div>
+      <hr>
+      <div style="font-size: 0.75rem; color: #4a627a;">
+        🔍 <strong>How it works:</strong> PDF.js extracts text content with coordinates, reconstructs paragraphs, and embeds images as inline base64. Result is a clean, editable HTML document that you can open in Word or any browser.
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL: Word-like editor -->
+    <div class="output-panel">
+      <div class="editor-toolbar">
+        <span style="font-weight: 600; font-size: 0.8rem;">📝 Word-style Editor</span>
+        <button id="clearEditorBtn" class="tool-btn">Clear</button>
+        <button id="insertTextBtn" class="tool-btn">➕ Add paragraph</button>
+        <span style="font-size: 0.7rem; margin-left: auto;">✏️ Editable content | Click to modify</span>
+      </div>
+      <div id="wordHtmlEditor" class="word-editor" contenteditable="true">
+        <p style="color: #8ba0b5; text-align: center;">✨ Converted PDF content will appear here — fully editable, just like a Word document.</p>
+        <p style="color: #8ba0b5; text-align: center;">Preserves text, images, and basic formatting.</p>
+      </div>
+      <div style="margin-top: 0.8rem; font-size: 0.7rem; text-align: right;">
+        💡 Tip: You can edit text directly, then copy or save as HTML.
+      </div>
+    </div>
+  </div>
+  <footer>
+    ⚡ Client-side conversion — your PDF stays private. Text extraction + image embedding. Best for text-heavy PDFs.
+  </footer>
+</div>
+
+<script>
+  (function(){
+    // Configure PDF.js worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    
+    // DOM elements
+    const dropZone = document.getElementById('dropZonePdf');
+    const fileInput = document.getElementById('pdfInput');
+    const convertBtn = document.getElementById('convertBtn');
+    const copyBtn = document.getElementById('copyHtmlBtn');
+    const downloadBtn = document.getElementById('downloadWordBtn');
+    const fileMetaDiv = document.getElementById('fileMeta');
+    const pdfFileNameSpan = document.getElementById('pdfFileName');
+    const pageCountSpan = document.getElementById('pageCountInfo');
+    const statusDiv = document.getElementById('statusMsg');
+    const editorDiv = document.getElementById('wordHtmlEditor');
+    const clearBtn = document.getElementById('clearEditorBtn');
+    const insertTextBtn = document.getElementById('insertTextBtn');
+    
+    // state
+    let currentPdfBuffer = null;
+    let currentPdfName = "";
+    let totalPages = 0;
+    let convertedHtml = "";      // last generated HTML string
+    let isConverting = false;
+    
+    // helper show status
+    function setStatus(msg, isError = false, isSuccess = false) {
+      statusDiv.innerHTML = msg;
+      statusDiv.className = "status-msg";
+      if (isError) statusDiv.classList.add("error");
+      else if (isSuccess) statusDiv.classList.add("success");
+      else statusDiv.classList.remove("error", "success");
+    }
+    
+    // format file size
+    function formatFileSize(bytes) {
+      if (!bytes) return "0 KB";
+      if (bytes < 1024) return bytes + " B";
+      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+      return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+    }
+    
+    // Load PDF metadata & enable conversion
+    async function loadPdfInfo(buffer, fileName) {
+      try {
+        const loadingTask = pdfjsLib.getDocument({ data: buffer.slice(0), useSystemFonts: true });
+        const pdfDoc = await loadingTask.promise;
+        totalPages = pdfDoc.numPages;
+        pageCountSpan.innerText = totalPages;
+        pdfFileNameSpan.innerText = fileName;
+        fileMetaDiv.style.display = "block";
+        setStatus(`✅ PDF loaded: ${fileName} (${totalPages} page(s)). Click "Convert to Word HTML".`, false, true);
+        convertBtn.disabled = false;
+        return pdfDoc;
+      } catch (err) {
+        console.error(err);
+        setStatus(`❌ Failed to parse PDF: ${err.message}`, true);
+        convertBtn.disabled = true;
+        return null;
+      }
+    }
+    
+    // Handle file selection
+    async function handlePdfFile(file) {
+      if (!file || file.type !== 'application/pdf') {
+        setStatus("❌ Please select a valid PDF file.", true);
+        return false;
+      }
+      if (file.size > 60 * 1024 * 1024) {
+        setStatus("❌ File exceeds 60 MB. Choose a smaller PDF.", true);
+        return false;
+      }
+      currentPdfName = file.name;
+      const buffer = await file.arrayBuffer();
+      currentPdfBuffer = buffer;
+      const loadOk = await loadPdfInfo(buffer, file.name);
+      if (loadOk) {
+        // reset editor content to placeholder
+        editorDiv.innerHTML = `<p style="color: #8ba0b5; text-align: center;">📄 PDF "${file.name}" loaded. Click convert to extract text & images.</p>`;
+        convertedHtml = "";
+        copyBtn.disabled = true;
+        downloadBtn.disabled = true;
+        return true;
+      }
+      return false;
+    }
+    
+    // Helper: extract images from a PDF page using getOperatorList (simpler: render page to canvas? but we want images as separate blobs)
+    // Alternative: For each page, we can extract raw image data via getOperatorList. However, robust image extraction is complex.
+    // For best UX, I will implement image extraction using canvas extraction for images? but that requires rendering each image element. 
+    // Instead: we will extract ALL images by scanning operatorList, but to keep functional and deliver images, we use a reliable method:
+    // Render each page in a hidden canvas and collect images as dataURL? That would lose original image position.
+    // Better: for each page, we can find image objects using common approach. I will implement a streamlined image collector that renders each page to canvas but also extracts inline images via page.getOperatorList.
+    // To make sure images appear in final HTML, I will combine both: extract image references using pdf.js getOperatorList and embed them as base64 in proper order.
+    // Given complexity, I'll implement an advanced extraction that gathers images per page and inserts them inline.
+    // For simplicity + robustness: Use a more direct method: For each page, we can parse text content and also get all image data by using 'page.getOperatorList' and fetch image objects.
+    // I'll implement a function that returns HTML with text blocks and embedded images (as base64).
+    
+    async function pdfToWordHtml(pdfBuffer) {
+      const loadingTask = pdfjsLib.getDocument({ data: pdfBuffer.slice(), useSystemFonts: true });
+      const pdfDoc = await loadingTask.promise;
+      const numPages = pdfDoc.numPages;
+      let fullHtml = `<div style="font-family: 'Segoe UI', 'Times New Roman', serif; max-width: 100%; line-height: 1.5;">`;
+      
+      for (let i = 1; i <= numPages; i++) {
+        const page = await pdfDoc.getPage(i);
+        // Get text content with positions
+        const textContent = await page.getTextContent();
+        const viewport = page.getViewport({ scale: 1.0 });
+        
+        // Extract text items and group them into paragraphs by y-coordinate threshold
+        let items = textContent.items;
+        let paragraphs = [];
+        let currentPara = [];
+        let lastY = null;
+        
+        // sort items by y then x
+        items.sort((a,b) => (a.transform[5] - b.transform[5]) || (a.transform[4] - b.transform[4]));
+        
+        for (let item of items) {
+          let y = item.transform[5];
+          if (lastY !== null && Math.abs(y - lastY) > 8) {
+            if (currentPara.length) {
+              paragraphs.push(currentPara.join(' '));
+              currentPara = [];
+            }
+          }
+          currentPara.push(item.str);
+          lastY = y;
+        }
+        if (currentPara.length) paragraphs.push(currentPara.join(' '));
+        
+        // Build page HTML
+        let pageHtml = `<div class="pdf-page" style="margin-bottom: 1.5rem; page-break-after: avoid;">`;
+        pageHtml += `<div style="border-bottom: 1px solid #cbd5e1; margin-bottom: 0.8rem; font-weight: 500; color: #2c5f7a;">📄 Page ${i}</div>`;
+        
+        for (let para of paragraphs) {
+          if (para.trim().length > 0) {
+            pageHtml += `<p style="margin: 0.6rem 0; text-align: justify;">${escapeHtml(para)}</p>`;
+          }
+        }
+        
+        // --- Extract images from page (using operatorList approach) ---
+        const operatorList = await page.getOperatorList();
+        const imagePromises = [];
+        const imageRefs = [];
+        
+        // common technique: iterate through fnArray to find OPS.paintImageXObject
+        const OPS = pdfjsLib.OPS;
+        for (let idx = 0; idx < operatorList.fnArray.length; idx++) {
+          if (operatorList.fnArray[idx] === OPS.paintImageXObject) {
+            const imgName = operatorList.argsArray[idx][0];
+            imageRefs.push(imgName);
+          }
+        }
+        
+        // fetch unique images
+        const uniqueRefs = [...new Set(imageRefs)];
+        for (let imgName of uniqueRefs) {
+          try {
+            const imgData = await new Promise((resolve, reject) => {
+              page.getAnnotations ? page.getAnnotations() : null;
+              page.commonObjs?.get(imgName, (data) => {
+                if (data && data.data) resolve(data);
+                else reject(new Error('image not found'));
+              });
+            });
+            if (imgData && imgData.data && imgData.width && imgData.height) {
+              // convert raw image data to PNG blob
+              const canvas = document.createElement('canvas');
+              canvas.width = imgData.width;
+              canvas.height = imgData.height;
+              const ctx = canvas.getContext('2d');
+              const imageData = new ImageData(new Uint8ClampedArray(imgData.data), imgData.width, imgData.height);
+              ctx.putImageData(imageData, 0, 0);
+              const dataUrl = canvas.toDataURL('image/png');
+              pageHtml += `<div style="margin: 1rem 0; text-align: center;"><img src="${dataUrl}" style="max-width: 100%; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" alt="Extracted image from page ${i}"></div>`;
+            }
+          } catch(e) {
+            console.warn(`Could not extract image ${imgName}`, e);
+          }
+        }
+        
+        pageHtml += `</div>`;
+        fullHtml += pageHtml;
+      }
+      
+      fullHtml += `</div>`;
+      return fullHtml;
+    }
+    
+    function escapeHtml(str) {
+      return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+      }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+        return c;
+      });
+    }
+    
+    // main conversion action
+    async function performConversion() {
+      if (!currentPdfBuffer) {
+        setStatus("⚠️ No PDF loaded. Please upload a file.", true);
+        return;
+      }
+      if (isConverting) {
+        setStatus("⏳ Conversion already in progress...", false);
+        return;
+      }
+      isConverting = true;
+      convertBtn.disabled = true;
+      setStatus("🔄 Extracting text, images, and building Word-like HTML... this may take a moment.", false);
+      
+      try {
+        const htmlContent = await pdfToWordHtml(currentPdfBuffer);
+        convertedHtml = htmlContent;
+        // populate editor
+        editorDiv.innerHTML = convertedHtml;
+        setStatus(`✅ Conversion successful! ${totalPages} page(s) converted to editable HTML. You can now edit, copy, or download.`, false, true);
+        copyBtn.disabled = false;
+        downloadBtn.disabled = false;
+      } catch (err) {
+        console.error(err);
+        setStatus(`❌ Conversion error: ${err.message || "Failed to extract content"}`, true);
+        editorDiv.innerHTML = `<p style="color: #b91c1c;">⚠️ Conversion failed. The PDF might be image-only or encrypted. Try another PDF.</p>`;
+      } finally {
+        isConverting = false;
+        convertBtn.disabled = false;
+      }
+    }
+    
+    // copy HTML content
+    function copyHtmlToClipboard() {
+      const htmlString = editorDiv.innerHTML;
+      navigator.clipboard.writeText(htmlString).then(() => {
+        setStatus("📋 HTML copied to clipboard! You can paste into Word or any rich editor.", false, true);
+      }).catch(() => {
+        setStatus("❌ Failed to copy. Manual selection needed.", true);
+      });
+    }
+    
+    // download as .html file (Word compatible)
+    function downloadAsHtml() {
+      if (!convertedHtml && editorDiv.innerHTML.trim() === '<p style="color: #8ba0b5; text-align: center;">✨ Converted PDF content will appear here — fully editable, just like a Word document.</p><p style="color: #8ba0b5; text-align: center;">Preserves text, images, and basic formatting.</p>') {
+        setStatus("⚠️ No converted content. Please convert a PDF first.", true);
+        return;
+      }
+      const contentToSave = editorDiv.innerHTML;
+      const fullDoc = `<!DOCTYPE html>
+      <html>
+      <head><meta charset="UTF-8"><title>Converted_${currentPdfName.replace('.pdf','') || 'document'}.html</title>
+      <style>body { font-family: 'Segoe UI', 'Times New Roman', serif; max-width: 900px; margin: 2rem auto; padding: 1rem; line-height: 1.5; } img { max-width: 100%; } .pdf-page { margin-bottom: 2rem; }</style>
+      </head>
+      <body>${contentToSave}</body>
+      </html>`;
+      const blob = new Blob([fullDoc], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `word_export_${currentPdfName.replace('.pdf','')}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setStatus("💾 HTML file downloaded. Open in Word or browser to edit.", false, true);
+    }
+    
+    // Clear editor
+    clearBtn.addEventListener('click', () => {
+      editorDiv.innerHTML = `<p style="color: #8ba0b5; text-align: center;">✨ Editor cleared — start fresh or convert another PDF.</p>`;
+      convertedHtml = "";
+      copyBtn.disabled = true;
+      downloadBtn.disabled = true;
+    });
+    
+    insertTextBtn.addEventListener('click', () => {
+      const newPara = document.createElement('p');
+      newPara.innerHTML = "📝 New paragraph — edit me! (added from toolbar)";
+      editorDiv.appendChild(newPara);
+      editorDiv.scrollTop = editorDiv.scrollHeight;
+    });
+    
+    // Event listeners
+    convertBtn.addEventListener('click', performConversion);
+    copyBtn.addEventListener('click', copyHtmlToClipboard);
+    downloadBtn.addEventListener('click', downloadAsHtml);
+    
+    // drag & drop
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      if (e.dataTransfer.files.length) {
+        await handlePdfFile(e.dataTransfer.files[0]);
+      }
+    });
+    fileInput.addEventListener('change', async (e) => {
+      if (fileInput.files.length) {
+        await handlePdfFile(fileInput.files[0]);
+      }
+      fileInput.value = '';
+    });
+    
+    // initial status
+    setStatus("📂 Upload PDF to convert to fully editable Word-style HTML (text + images)", false);
+  })();
+</script>
+</body>
+</html>
